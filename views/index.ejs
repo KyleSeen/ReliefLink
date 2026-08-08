@@ -1,0 +1,85 @@
+<%- include('partials/header') %>
+
+<% if (typeof notFound !== 'undefined' && notFound) { %>
+  <div class="container mt-4">
+    <div class="alert alert-warning" role="alert">
+      That page wasn't found. Here's the ReliefLink home page instead.
+    </div>
+  </div>
+<% } %>
+
+<!-- Hero -->
+<section class="rl-hero text-white">
+  <div class="container text-center py-5">
+    <h1 class="display-4 fw-bold mb-3">
+      <i class="bi bi-life-preserver me-2"></i>ReliefLink
+    </h1>
+    <p class="lead mb-4">
+      A centralized platform that connects agencies, the public, volunteers, and
+      donors to coordinate disaster relief — quickly and clearly, when it matters most.
+    </p>
+    <div class="d-flex justify-content-center gap-3 flex-wrap">
+      <% if (currentUser) { %>
+        <a href="/<%= currentUser.role %>/dashboard" class="btn btn-light btn-lg">
+          Go to my dashboard
+        </a>
+      <% } else { %>
+        <a href="/login" class="btn btn-light btn-lg">Login</a>
+        <a href="/register" class="btn btn-outline-light btn-lg">Register</a>
+      <% } %>
+    </div>
+  </div>
+</section>
+
+<!-- Roles -->
+<section class="container py-5">
+  <h2 class="text-center mb-5 rl-section-title">Four roles, one coordinated response</h2>
+  <div class="row g-4">
+    <div class="col-md-6 col-lg-3">
+      <div class="card rl-role-card h-100">
+        <div class="card-body text-center">
+          <i class="bi bi-shield-check rl-role-icon"></i>
+          <h5 class="card-title mt-3">Admin / Coordinator</h5>
+          <p class="card-text text-muted">
+            Relief-agency staff who manage shelters and assign volunteers.
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <div class="card rl-role-card h-100">
+        <div class="card-body text-center">
+          <i class="bi bi-people rl-role-icon"></i>
+          <h5 class="card-title mt-3">Victim / Public User</h5>
+          <p class="card-text text-muted">
+            Affected members of the public who register for aid and report incidents.
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <div class="card rl-role-card h-100">
+        <div class="card-body text-center">
+          <i class="bi bi-person-arms-up rl-role-icon"></i>
+          <h5 class="card-title mt-3">Volunteer</h5>
+          <p class="card-text text-muted">
+            Field helpers who view and accept tasks and update their availability.
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+      <div class="card rl-role-card h-100">
+        <div class="card-body text-center">
+          <i class="bi bi-box-heart rl-role-icon"></i>
+          <h5 class="card-title mt-3">NGO / Donor</h5>
+          <p class="card-text text-muted">
+            Donors and organizations who pledge resources against real needs.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,166 @@
+/* ============================================================
+   ReliefLink — Shared theme
+   Palette: deep blue (trust) + white + a single alert accent.
+   Team members: reuse these variables and classes so features
+   dropped into the dashboards stay visually consistent.
+   ============================================================ */
+
+:root {
+  --rl-primary: #0b3d91;        /* deep blue */
+  --rl-primary-dark: #072a66;
+  --rl-primary-light: #1e5bc6;
+  --rl-accent: #e63946;         /* alert accent (emergency red) */
+  --rl-bg: #f4f7fb;
+  --rl-text: #1c2733;
+  --rl-muted: #6b7785;
+  --rl-radius: 12px;
+  --rl-shadow: 0 6px 18px rgba(11, 61, 145, 0.08);
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--rl-bg);
+  color: var(--rl-text);
+  font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+}
+
+.rl-main {
+  flex: 1 0 auto;
+}
+
+/* ---------- Navbar ---------- */
+.rl-navbar {
+  background: var(--rl-primary);
+  box-shadow: var(--rl-shadow);
+}
+.rl-navbar .navbar-brand {
+  letter-spacing: 0.3px;
+}
+
+/* ---------- Role badge ---------- */
+.rl-role-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  font-size: 0.72rem;
+  text-transform: capitalize;
+  padding: 1px 8px;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+/* ---------- Hero (landing) ---------- */
+.rl-hero {
+  background: linear-gradient(135deg, var(--rl-primary) 0%, var(--rl-primary-light) 100%);
+}
+
+/* ---------- Section titles ---------- */
+.rl-section-title {
+  color: var(--rl-primary-dark);
+  font-weight: 700;
+}
+
+/* ---------- Role cards ---------- */
+.rl-role-card {
+  border: none;
+  border-radius: var(--rl-radius);
+  box-shadow: var(--rl-shadow);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.rl-role-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 26px rgba(11, 61, 145, 0.15);
+}
+.rl-role-icon {
+  font-size: 2.4rem;
+  color: var(--rl-primary);
+}
+
+/* ---------- Auth cards ---------- */
+.rl-auth-card {
+  border: none;
+  border-radius: var(--rl-radius);
+  box-shadow: var(--rl-shadow);
+}
+
+/* ---------- Buttons ---------- */
+.rl-btn-primary {
+  background: var(--rl-primary);
+  border-color: var(--rl-primary);
+  color: #fff;
+  font-weight: 600;
+}
+.rl-btn-primary:hover,
+.rl-btn-primary:focus {
+  background: var(--rl-primary-dark);
+  border-color: var(--rl-primary-dark);
+  color: #fff;
+}
+.rl-btn-accent {
+  background: var(--rl-accent);
+  border-color: var(--rl-accent);
+  color: #fff;
+  font-weight: 600;
+}
+.rl-btn-accent:hover,
+.rl-btn-accent:focus {
+  filter: brightness(0.92);
+  color: #fff;
+}
+
+/* ---------- Dashboard header banner ---------- */
+.rl-dash-header {
+  background: linear-gradient(135deg, var(--rl-primary) 0%, var(--rl-primary-light) 100%);
+  color: #fff;
+  padding: 1.75rem 0;
+  box-shadow: var(--rl-shadow);
+}
+
+/* ---------- Feature area (where teams build) ---------- */
+.feature-area {
+  background: #fff;
+  border-radius: var(--rl-radius);
+  box-shadow: var(--rl-shadow);
+  padding: 1.5rem;
+  min-height: 320px;
+}
+.rl-empty-state {
+  border: 2px dashed #d5deea;
+  border-radius: var(--rl-radius);
+  color: var(--rl-muted);
+}
+.rl-empty-icon {
+  font-size: 2.6rem;
+  color: var(--rl-primary-light);
+}
+
+/* Reusable card for feature content teams add later */
+.rl-card {
+  border: none;
+  border-radius: var(--rl-radius);
+  box-shadow: var(--rl-shadow);
+}
+
+/* Links */
+a {
+  color: var(--rl-primary);
+}
+a:hover {
+  color: var(--rl-primary-dark);
+}
+
+/* ---------- Footer ---------- */
+.rl-footer {
+  flex-shrink: 0;
+  background: var(--rl-primary-dark);
+  color: #fff;
+  padding: 1.25rem 0;
+  margin-top: 3rem;
+}

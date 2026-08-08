@@ -1,27 +1,248 @@
 <%- include('../partials/header') %>
 
+<%
+  // Small helpers for coloured status badges
+  function shelterBadge(s){
+    return s === 'open' ? 'bg-success' : (s === 'full' ? 'bg-warning text-dark' : 'bg-secondary');
+  }
+  function taskBadge(s){
+    if (s === 'open') return 'bg-secondary';
+    if (s === 'accepted') return 'bg-info text-dark';
+    if (s === 'in_progress') return 'bg-primary';
+    if (s === 'completed') return 'bg-success';
+    return 'bg-secondary';
+  }
+%>
+
 <div class="rl-dash-header">
   <div class="container">
-    <span class="rl-role-badge mb-2"><i class="bi bi-shield-check me-1"></i>Admin</span>
-    <h1 class="h3 mb-0">Welcome, <%= currentUser.name %> — Admin Dashboard</h1>
-    <p class="mb-0 text-white-50">Coordinate shelters and assign volunteers.</p>
+    <h1 class="h3 mb-1">Admin Dashboard</h1>
+    <p class="mb-0 text-white-50">Logged in as <%= currentUser.name %></p>
   </div>
 </div>
 
 <div class="container py-4">
-  <!-- ============================================= -->
-  <!-- TEAM: BUILD YOUR TWO FUNCTIONALITIES BELOW    -->
-  <!-- Owner: admin                                  -->
-  <!-- Tables: shelters, tasks, users               -->
-  <!-- ============================================= -->
-  <div class="feature-area">
-    <div class="rl-empty-state text-center py-5">
-      <i class="bi bi-tools rl-empty-icon"></i>
-      <h5 class="mt-3">Your functionalities will be built here.</h5>
-      <p class="text-muted mb-0">
-        Manage shelters and assign volunteers — add your forms, cards, and tables inside this area.
-      </p>
+
+  <!-- Flash messages -->
+  <% if (ok) { %>
+    <div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i><%= ok %></div>
+  <% } %>
+  <% if (err) { %>
+    <div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle me-1"></i><%= err %></div>
+  <% } %>
+
+  <!-- Quick stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="card rl-card text-center"><div class="card-body py-3">
+        <div class="h4 mb-0 text-primary"><%= shelters.length %></div>
+        <small class="text-muted">Shelters</small>
+      </div></div>
     </div>
+    <div class="col-6 col-md-3">
+      <div class="card rl-card text-center"><div class="card-body py-3">
+        <div class="h4 mb-0 text-primary"><%= tasks.length %></div>
+        <small class="text-muted">Tasks</small>
+      </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card rl-card text-center"><div class="card-body py-3">
+        <div class="h4 mb-0 text-primary"><%= volunteers.length %></div>
+        <small class="text-muted">Volunteers</small>
+      </div></div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card rl-card text-center"><div class="card-body py-3">
+        <div class="h4 mb-0 text-primary"><%= tasks.filter(t => !t.assigned_to).length %></div>
+        <small class="text-muted">Unassigned</small>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- ============================================= -->
+  <!-- ADMIN FUNCTIONALITIES (Owner: Salman)         -->
+  <!-- 1) Manage Shelters   2) Assign Volunteers     -->
+  <!-- ============================================= -->
+
+  <!-- Tab bar -->
+  <ul class="nav nav-tabs mb-0" id="adminTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link <%= tab === 'shelters' ? 'active' : '' %>" id="shelters-tab"
+              data-bs-toggle="tab" data-bs-target="#shelters-pane" type="button" role="tab">
+        <i class="bi bi-house-heart me-1"></i>Manage Shelters
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link <%= tab === 'tasks' ? 'active' : '' %>" id="tasks-tab"
+              data-bs-toggle="tab" data-bs-target="#tasks-pane" type="button" role="tab">
+        <i class="bi bi-person-check me-1"></i>Assign Volunteers
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content feature-area rounded-0 rounded-bottom">
+
+    <!-- ================= TAB 1: MANAGE SHELTERS ================= -->
+    <div class="tab-pane fade <%= tab === 'shelters' ? 'show active' : '' %>" id="shelters-pane" role="tabpanel">
+
+      <h5 class="mb-3"><i class="bi bi-plus-circle me-1"></i>Add a shelter</h5>
+      <form action="/admin/shelters" method="POST" class="row g-2 align-items-end mb-4">
+        <div class="col-md-4">
+          <label class="form-label">Name</label>
+          <input type="text" name="name" class="form-control" placeholder="e.g. Central Community Hall" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Location</label>
+          <input type="text" name="location" class="form-control" placeholder="e.g. Downtown, Sector 4" required>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Capacity</label>
+          <input type="number" name="capacity" class="form-control" min="0" placeholder="200" required>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn rl-btn-primary w-100">Add</button>
+        </div>
+      </form>
+
+      <h5 class="mb-3"><i class="bi bi-list-ul me-1"></i>All shelters</h5>
+      <% if (shelters.length === 0) { %>
+        <p class="text-muted">No shelters yet. Add one above.</p>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Name</th><th>Location</th><th>Capacity</th>
+                <th style="min-width:230px;">Occupancy & Status</th>
+                <th class="text-end">Remove</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% shelters.forEach(function(s){ %>
+                <tr>
+                  <td class="fw-semibold"><%= s.name %></td>
+                  <td><%= s.location %></td>
+                  <td><%= s.capacity %></td>
+                  <td>
+                    <form action="/admin/shelters/<%= s.id %>/update" method="POST" class="d-flex gap-1">
+                      <input type="number" name="current_occupancy" class="form-control form-control-sm"
+                             style="width:80px;" min="0" value="<%= s.current_occupancy %>">
+                      <select name="status" class="form-select form-select-sm" style="width:100px;">
+                        <option value="open"   <%= s.status === 'open'   ? 'selected' : '' %>>open</option>
+                        <option value="full"   <%= s.status === 'full'   ? 'selected' : '' %>>full</option>
+                        <option value="closed" <%= s.status === 'closed' ? 'selected' : '' %>>closed</option>
+                      </select>
+                      <button class="btn btn-sm btn-outline-primary">Save</button>
+                    </form>
+                    <span class="badge <%= shelterBadge(s.status) %> mt-1"><%= s.status %></span>
+                  </td>
+                  <td class="text-end">
+                    <form action="/admin/shelters/<%= s.id %>/delete" method="POST"
+                          onsubmit="return confirm('Delete this shelter?');">
+                      <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                    </form>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+
+    <!-- ================= TAB 2: ASSIGN VOLUNTEERS ================= -->
+    <div class="tab-pane fade <%= tab === 'tasks' ? 'show active' : '' %>" id="tasks-pane" role="tabpanel">
+
+      <h5 class="mb-3"><i class="bi bi-plus-circle me-1"></i>Create &amp; assign a task</h5>
+      <% if (volunteers.length === 0) { %>
+        <div class="alert alert-info py-2">
+          No volunteers have registered yet. You can still create a task and assign it later.
+        </div>
+      <% } %>
+      <form action="/admin/tasks" method="POST" class="row g-2 align-items-end mb-4">
+        <div class="col-md-3">
+          <label class="form-label">Title</label>
+          <input type="text" name="title" class="form-control" placeholder="e.g. Distribute water" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Description</label>
+          <input type="text" name="description" class="form-control" placeholder="Optional details">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Shelter</label>
+          <select name="shelter_id" class="form-select">
+            <option value="">None</option>
+            <% shelters.forEach(function(s){ %>
+              <option value="<%= s.id %>"><%= s.name %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Assign to</label>
+          <select name="assigned_to" class="form-select">
+            <option value="">Unassigned</option>
+            <% volunteers.forEach(function(v){ %>
+              <option value="<%= v.id %>"><%= v.name %> (<%= v.availability %>)</option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn rl-btn-primary w-100">Create</button>
+        </div>
+      </form>
+
+      <h5 class="mb-3"><i class="bi bi-list-task me-1"></i>All tasks</h5>
+      <% if (tasks.length === 0) { %>
+        <p class="text-muted">No tasks yet. Create one above.</p>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Task</th><th>Shelter</th><th>Status</th>
+                <th style="min-width:230px;">Assigned volunteer</th>
+                <th class="text-end">Remove</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% tasks.forEach(function(t){ %>
+                <tr>
+                  <td>
+                    <div class="fw-semibold"><%= t.title %></div>
+                    <% if (t.description) { %><small class="text-muted"><%= t.description %></small><% } %>
+                  </td>
+                  <td><%= t.shelter_name ? t.shelter_name : 'None' %></td>
+                  <td><span class="badge <%= taskBadge(t.status) %>"><%= t.status %></span></td>
+                  <td>
+                    <form action="/admin/tasks/<%= t.id %>/assign" method="POST" class="d-flex gap-1">
+                      <select name="assigned_to" class="form-select form-select-sm">
+                        <option value="">Unassigned</option>
+                        <% volunteers.forEach(function(v){ %>
+                          <option value="<%= v.id %>" <%= t.assigned_to === v.id ? 'selected' : '' %>>
+                            <%= v.name %> (<%= v.availability %>)
+                          </option>
+                        <% }); %>
+                      </select>
+                      <button class="btn btn-sm btn-outline-primary">Save</button>
+                    </form>
+                    <% if (!t.assigned_to) { %>
+                      <small class="text-muted">Not yet assigned</small>
+                    <% } %>
+                  </td>
+                  <td class="text-end">
+                    <form action="/admin/tasks/<%= t.id %>/delete" method="POST"
+                          onsubmit="return confirm('Delete this task?');">
+                      <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                    </form>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+
   </div>
 </div>
 

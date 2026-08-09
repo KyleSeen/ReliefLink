@@ -130,9 +130,10 @@ reliefLink/
 ## 8. What's already done vs. left to build
 
 **Done (foundation):** landing page, register, login, logout, session, role-based
-routing + guards, all six database tables + seed data, four styled dashboard shells,
+routing + guards, all seven database tables + seed data, four styled dashboard shells,
 shared theme.
 
 **Left for the team:** the two role-specific functionalities each (managing shelters
-& assigning volunteers; aid registration & incident reports; task accept & availability;
-donation pledging & resource-need dashboard). Tables for all of these already exist.
+& assigning volunteers; aid registration & incident reports; task accept/update &
+activity log; donation pledging & resource-need dashboard). Tables for all of these
+already exist.

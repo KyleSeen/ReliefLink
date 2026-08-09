@@ -64,19 +64,23 @@ Password for **all** seed accounts: `Test1234`
 You can also register a brand-new account for any role from `/register`.
 
 ## 4. Where do I build my part?
-
 Each member owns one dashboard view and one route file. Work only in your own
-files so nobody's changes collide.
+files so nobody's changes collide. Each member's two functionalities are designed
+to cover a full set of CRUD operations (Create, Read, Update, Delete).
 
-| Member | Role | Build your features in | Tables you'll use |
-|---|---|---|---|
-| Salman | Admin | `views/dashboards/admin.ejs` + `routes/admin.js` | shelters, tasks, users |
-| Mangong | Victim | `views/dashboards/victim.ejs` + `routes/victim.js` | aid_requests, incident_reports, shelters |
-| Saeed | Volunteer | `views/dashboards/volunteer.ejs` + `routes/volunteer.js` | tasks, users |
-| Yap Sin Ni | Donor | `views/dashboards/donor.ejs` + `routes/donor.js` | donations, shelters, aid_requests |
+| Member | Role | Build your features in | Tables you'll use | CRUD coverage |
+|---|---|---|---|---|
+| Salman | Admin | `views/dashboards/admin.ejs` + `routes/admin.js` | shelters, tasks, users | Manage shelters = full CRUD; assign volunteers = Read + Update |
+| Manhong | Victim | `views/dashboards/victim.ejs` + `routes/victim.js` | aid_requests, incident_reports, shelters | Aid requests = Create + Read; emergency reports = full CRUD (create, view, edit, cancel) |
+| Saeed | Volunteer | `views/dashboards/volunteer.ejs` + `routes/volunteer.js` | tasks, volunteer_logs, users | Accept/update tasks = Read + Update; activity log = full CRUD (add, view, edit, delete entries) |
+| Yap Sin Ni | Donor | `views/dashboards/donor.ejs` + `routes/donor.js` | donations, shelters, aid_requests | Donations = full CRUD (pledge, view, edit, cancel); resource-need dashboard = Read (aggregation) |
 
 Inside each dashboard `.ejs` there's a clearly marked `feature-area` div with a
 `TEAM: BUILD YOUR TWO FUNCTIONALITIES BELOW` comment — put your UI there.
+
+**Note:** the `volunteer_logs` table (id, user_id, activity, notes, status, created_at)
+supports Saeed's activity-log feature so every member has a genuine full-CRUD
+functionality. It is created in `schema.sql` as part of the foundation build.
 
 ## 5. Git workflow
 

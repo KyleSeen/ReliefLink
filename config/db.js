@@ -1,7 +1,4 @@
-// config/db.js — MySQL connection pool (mysql2)
-// Reads all connection settings from environment variables (see .env.example).
-// For AWS, only DB_HOST / DB_USER / DB_PASSWORD change to point at RDS — no code changes.
-
+// MySQL connection pool. All settings come from environment variables (.env).
 require('dotenv').config();
 const mysql = require('mysql2');
 
@@ -14,7 +11,10 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
+  // RDS drops idle connections; keepalive prevents the pool handing out a dead socket.
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
+  connectTimeout: 20000,
 });
 
-// Export a promise-based pool so routes can use async/await.
 module.exports = pool.promise();

@@ -1,40 +1,28 @@
 <%- include('partials/header') %>
 
-<section class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-md-7 col-lg-5">
-      <div class="card rl-auth-card">
-        <div class="card-body p-4 p-md-5">
-          <h3 class="mb-1 rl-section-title">Welcome back</h3>
-          <p class="text-muted mb-4">Log in to your ReliefLink dashboard.</p>
+<h1>Sign in</h1>
 
-          <% if (registered) { %>
-            <div class="alert alert-success py-2">Account created. Please log in.</div>
-          <% } %>
-          <% if (error) { %>
-            <div class="alert alert-danger py-2"><%= error %></div>
-          <% } %>
+<% if (registered) { %>
+  <div class="banner green"><div class="head">Account created</div><div class="body">You can sign in now.</div></div>
+<% } %>
+<% if (error) { %>
+  <div class="inset" style="border-left-color:var(--red)"><strong style="color:var(--red)"><%= error %></strong></div>
+<% } %>
 
-          <form action="/login" method="POST" novalidate>
-            <div class="mb-3">
-              <label class="form-label" for="email">Email</label>
-              <input type="email" class="form-control" id="email" name="email"
-                     value="<%= form.email || '' %>" required />
-            </div>
-            <div class="mb-4">
-              <label class="form-label" for="password">Password</label>
-              <input type="password" class="form-control" id="password" name="password" required />
-            </div>
-            <button type="submit" class="btn rl-btn-primary w-100">Login</button>
-          </form>
-
-          <p class="text-center text-muted mt-4 mb-0">
-            No account yet? <a href="/register">Register</a>
-          </p>
-        </div>
-      </div>
+<div class="panel" style="max-width:520px">
+  <form action="/login" method="POST" novalidate>
+    <div class="field">
+      <label for="email">Email address</label>
+      <input type="email" id="email" name="email" value="<%= form.email || '' %>" required>
     </div>
-  </div>
-</section>
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required>
+    </div>
+    <button type="submit" class="btn">Sign in</button>
+  </form>
+</div>
+
+<p>No account yet? <a href="/register">Register</a></p>
 
 <%- include('partials/footer') %>

@@ -1,160 +1,149 @@
 <%- include('../partials/header') %>
 
 <%
-  function donationBadge(s){
-    return s === 'received' ? 'bg-success' : 'bg-secondary';
-  }
-  function shelterBadge(s){
-    return s === 'open' ? 'bg-success' : (s === 'full' ? 'bg-warning text-dark' : 'bg-secondary');
-  }
+  function meterClass(occ, cap){ var p = cap > 0 ? occ / cap * 100 : 100; return p >= 100 ? 'full' : (p >= 75 ? 'warn' : ''); }
+  function meterPct(occ, cap){ return cap > 0 ? Math.min(Math.round(occ / cap * 100), 100) : 100; }
+  function shelterStatusTag(s){ return s === 'full' ? 'red' : (s === 'closed' ? 'grey' : 'green'); }
+  function shelterStatusLabel(s){ return s === 'full' ? 'Full' : (s === 'closed' ? 'Closed' : 'Taking people'); }
 %>
 
-<div class="rl-dash-header">
-  <div class="container">
-    <h1 class="h3 mb-1">Donor Dashboard</h1>
-    <p class="mb-0 text-white-50">Logged in as <%= currentUser.name %></p>
+<% if (ok) { %>
+  <div class="toast"><div class="head">Done</div><div class="body"><%= ok %></div></div>
+<% } else if (err) { %>
+  <div class="toast err"><div class="head">There is a problem</div><div class="body"><%= err %></div></div>
+<% } %>
+
+<%- include('../partials/chain') %>
+
+<h1>Donor dashboard</h1>
+
+<% if (stats.categoriesShort > 0) { %>
+  <div class="banner"><div class="head">Action needed</div>
+    <div class="body"><%= stats.categoriesShort %> categor<%= stats.categoriesShort === 1 ? 'y is' : 'ies are' %> short of what is needed.</div>
   </div>
+<% } %>
+
+<div class="stats">
+  <div class="stat"><div class="num mono"><%= stats.pledges %></div><div class="lbl">Your pledges</div></div>
+  <div class="stat green"><div class="num mono"><%= stats.unitsPledged %></div><div class="lbl">Units pledged</div></div>
+  <div class="stat <%= stats.categoriesShort > 0 ? 'red' : '' %>"><div class="num mono"><%= stats.categoriesShort %></div><div class="lbl">Categories short</div></div>
 </div>
 
-<div class="container py-4">
-
-  <!-- Flash messages -->
-  <% if (ok) { %>
-    <div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i><%= ok %></div>
-  <% } %>
-  <% if (err) { %>
-    <div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle me-1"></i><%= err %></div>
-  <% } %>
-
-  <!-- Quick stats -->
-  <div class="row g-3 mb-4">
-    <div class="col-6 col-md-4">
-      <div class="card rl-card text-center"><div class="card-body py-3">
-        <div class="h4 mb-0 text-primary"><%= donations.length %></div>
-        <small class="text-muted">Your Pledges</small>
-      </div></div>
-    </div>
-    <div class="col-6 col-md-4">
-      <div class="card rl-card text-center"><div class="card-body py-3">
-        <div class="h4 mb-0 text-primary"><%= donations.filter(d => d.status === 'received').length %></div>
-        <small class="text-muted">Received</small>
-      </div></div>
-    </div>
-    <div class="col-6 col-md-4">
-      <div class="card rl-card text-center"><div class="card-body py-3">
-        <div class="h4 mb-0 text-primary"><%= shelters.length %></div>
-        <small class="text-muted">Shelters</small>
-      </div></div>
-    </div>
+<!-- Donor features (Owner: Yap Sin Ni): pledge donations, resource-need shortfall -->
+<div data-tabs="<%= tab %>">
+  <div class="tabs">
+    <button class="tab-btn" data-target="donations">Pledge donations</button>
+    <button class="tab-btn" data-target="needs">Resource needs</button>
   </div>
 
-  <!-- ============================================= -->
-  <!-- DONOR FUNCTIONALITIES (Owner: Yap Sin Ni)     -->
-  <!-- 1) Pledge Donations   2) Resource-Need View   -->
-  <!-- ============================================= -->
-
-  <ul class="nav nav-tabs mb-0" id="donorTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-      <button class="nav-link <%= tab === 'donations' ? 'active' : '' %>" id="donations-tab"
-              data-bs-toggle="tab" data-bs-target="#donations-pane" type="button" role="tab">
-        <i class="bi bi-gift me-1"></i>Pledge Donations
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link <%= tab === 'shelters' ? 'active' : '' %>" id="shelters-tab"
-              data-bs-toggle="tab" data-bs-target="#shelters-pane" type="button" role="tab">
-        <i class="bi bi-house-heart me-1"></i>Resource-Need Dashboard
-      </button>
-    </li>
-  </ul>
-
-  <div class="tab-content feature-area rounded-0 rounded-bottom">
-
-    <!-- ================= TAB 1: PLEDGE DONATIONS ================= -->
-    <div class="tab-pane fade <%= tab === 'donations' ? 'show active' : '' %>" id="donations-pane" role="tabpanel">
-
-      <h5 class="mb-3"><i class="bi bi-plus-circle me-1"></i>Pledge a donation</h5>
-      <form action="/donor/donations" method="POST" class="row g-2 align-items-end mb-4">
-        <div class="col-md-5">
-          <label class="form-label">Item type</label>
-          <input type="text" name="item_type" class="form-control" placeholder="e.g. Money, Food, Water" required>
+  <!-- Pledge donations -->
+  <div class="tab-pane" id="donations">
+    <div class="panel">
+      <h3>Pledge a donation</h3>
+      <form action="/donor/donations" method="POST" class="form-row">
+        <div class="field"><label>Category</label>
+          <select name="item_type" required>
+            <option value="" disabled selected>Choose a category</option>
+            <% needTypes.forEach(function(n){ %><option value="<%= n %>"><%= n %></option><% }); %>
+          </select>
         </div>
-        <div class="col-md-4">
-          <label class="form-label">Quantity</label>
-          <input type="number" name="quantity" class="form-control" min="1" placeholder="e.g. 100" required>
-        </div>
-        <div class="col-md-3">
-          <button type="submit" class="btn rl-btn-primary w-100">Pledge</button>
-        </div>
+        <div class="field narrow"><label>Quantity (units)</label><input type="number" name="quantity" min="1" required></div>
+        <div class="field narrow"><button class="btn">Pledge</button></div>
       </form>
-
-      <h5 class="mb-3"><i class="bi bi-clock-history me-1"></i>Your donation history</h5>
-      <% if (donations.length === 0) { %>
-        <p class="text-muted">You haven't pledged anything yet. Add one above.</p>
-      <% } else { %>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>Item</th><th>Quantity</th><th>Status</th><th>Date</th>
-                <th class="text-end">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% donations.forEach(function(d){ %>
-                <tr>
-                  <td class="fw-semibold"><%= d.item_type %></td>
-                  <td><%= d.quantity %></td>
-                  <td><span class="badge <%= donationBadge(d.status) %>"><%= d.status %></span></td>
-                  <td><%= new Date(d.created_at).toLocaleDateString() %></td>
-                  <td class="text-end">
-                    <% if (d.status === 'pledged') { %>
-                      <form action="/donor/donations/<%= d.id %>/delete" method="POST"
-                            onsubmit="return confirm('Cancel this pledge?');">
-                        <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                      </form>
-                    <% } %>
-                  </td>
-                </tr>
-              <% }); %>
-            </tbody>
-          </table>
-        </div>
-      <% } %>
     </div>
 
-    <!-- ================= TAB 2: RESOURCE-NEED DASHBOARD ================= -->
-    <div class="tab-pane fade <%= tab === 'shelters' ? 'show active' : '' %>" id="shelters-pane" role="tabpanel">
+    <% if (donations.length === 0) { %>
+      <p class="muted">You have not pledged anything yet.</p>
+    <% } else { %>
+      <table>
+        <caption>Your pledges (<%= donations.length %>).</caption>
+        <thead><tr><th>Item and quantity</th><th>Status</th><th>Date</th><th></th></tr></thead>
+        <tbody>
+          <% donations.forEach(function(d){ %>
+            <tr>
+              <td data-label="Item">
+                <% if (d.status === 'pledged') { %>
+                  <form action="/donor/donations/<%= d.id %>/update" method="POST" class="form-row">
+                    <div class="field narrow" style="flex:0 1 130px">
+                      <select name="item_type">
+                        <% needTypes.forEach(function(n){ %><option value="<%= n %>" <%= d.item_type === n ? 'selected' : '' %>><%= n %></option><% }); %>
+                      </select>
+                    </div>
+                    <div class="field narrow" style="flex:0 1 90px"><input type="number" name="quantity" min="1" value="<%= d.quantity %>"></div>
+                    <div class="field narrow"><button class="btn sm blue">Save</button></div>
+                  </form>
+                <% } else { %>
+                  <strong><%= d.item_type %></strong> <span class="mono"><%= d.quantity %></span>
+                <% } %>
+              </td>
+              <td data-label="Status"><span class="tag <%= d.status === 'received' ? 'green' : 'grey' %>"><%= d.status %></span></td>
+              <td data-label="Date"><%= new Date(d.created_at).toLocaleDateString() %></td>
+              <td data-label="">
+                <% if (d.status === 'pledged') { %>
+                  <form action="/donor/donations/<%= d.id %>/delete" method="POST" class="inline-form"
+                        onsubmit="return confirm('Withdraw this pledge?');">
+                    <button class="link-danger">Withdraw</button>
+                  </form>
+                <% } %>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
 
-      <h5 class="mb-3"><i class="bi bi-graph-up me-1"></i>Where help is needed most</h5>
-      <% if (shelters.length === 0) { %>
-        <p class="text-muted">No shelter data available yet.</p>
-      <% } else { %>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>Shelter</th><th>Location</th><th>Capacity</th>
-                <th>Occupancy</th><th>Spots Left</th><th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% shelters.forEach(function(s){ %>
-                <tr>
-                  <td class="fw-semibold"><%= s.name %></td>
-                  <td><%= s.location %></td>
-                  <td><%= s.capacity %></td>
-                  <td><%= s.current_occupancy %></td>
-                  <td><%= s.spots_left %></td>
-                  <td><span class="badge <%= shelterBadge(s.status) %>"><%= s.status %></span></td>
-                </tr>
-              <% }); %>
-            </tbody>
-          </table>
+  <!-- Resource needs -->
+  <div class="tab-pane" id="needs">
+    <h2 class="section-title">Where donations are needed most</h2>
+    <p class="need-intro">Categories with unmet need, largest gap first.</p>
+    <% if (shortfall.length === 0) { %>
+      <div class="inset">All current requests are covered by pledged donations.</div>
+    <% } else { %>
+      <% shortfall.forEach(function(s){
+           var needed = Number(s.units_needed) || 0;
+           var pledged = Number(s.units_pledged) || 0;
+           var short = Number(s.shortfall) || 0;
+           var pct = needed > 0 ? Math.min(Math.max(Math.round(short / needed * 100), 0), 100) : 0;
+      %>
+        <div class="need-row">
+          <div class="need-left">
+            <div class="cat"><%= s.category %></div>
+            <div class="sub"><span class="mono"><%= needed %></span> units needed &middot; <span class="mono"><%= pledged %></span> pledged</div>
+          </div>
+          <div class="need-mid">
+            <div class="need-bar">
+              <% if (short > 0) { %><span style="width:<%= pct %>%"></span><% } else { %><span class="covered" style="width:100%"></span><% } %>
+            </div>
+          </div>
+          <div class="need-right"><% if (short > 0) { %><%= short %> short<% } else { %>Covered<% } %></div>
         </div>
-      <% } %>
-    </div>
+      <% }); %>
+    <% } %>
 
+    <h2 class="section-title" style="margin-top:26px">Shelter occupancy</h2>
+    <% if (shelters.length === 0) { %>
+      <div class="inset">No shelters have been added yet.</div>
+    <% } else { %>
+      <table>
+        <caption>Shelters and how full they are (<%= shelters.length %>).</caption>
+        <thead><tr><th>Shelter</th><th>Location</th><th>Occupancy</th><th>Spaces left</th><th>Status</th></tr></thead>
+        <tbody>
+          <% shelters.forEach(function(s){ %>
+            <tr>
+              <td data-label="Shelter"><strong><%= s.name %></strong></td>
+              <td data-label="Location"><%= s.location %></td>
+              <td data-label="Occupancy">
+                <div class="meter"><div class="fill <%= meterClass(s.current_occupancy, s.capacity) %>" style="width:<%= meterPct(s.current_occupancy, s.capacity) %>%"></div></div>
+                <div class="meter-cap"><%= s.current_occupancy %> of <%= s.capacity %></div>
+              </td>
+              <td data-label="Spaces left"><span class="mono"><%= s.spots_left %></span></td>
+              <td data-label="Status"><span class="tag <%= shelterStatusTag(s.status) %>"><%= shelterStatusLabel(s.status) %></span></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
   </div>
 </div>
 

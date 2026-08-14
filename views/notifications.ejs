@@ -1,0 +1,39 @@
+<%- include('partials/header') %>
+
+<% if (ok) { %>
+  <div class="toast"><div class="head">Done</div><div class="body"><%= ok %></div></div>
+<% } %>
+
+<h1>Notifications</h1>
+
+<% var unread = items.filter(function(n){ return !n.is_read; }).length; %>
+<% if (unread > 0) { %>
+  <form action="/notifications/read-all" method="POST" class="inline-form" style="margin-bottom:16px">
+    <button class="btn blue">Mark all read</button>
+  </form>
+<% } %>
+
+<% if (items.length === 0) { %>
+  <div class="inset">You have no notifications.</div>
+<% } else { %>
+  <ul class="notif-list">
+    <% items.forEach(function(n){ %>
+      <li class="notif <%= n.is_read ? 'read' : 'unread' %>">
+        <div class="notif-body">
+          <div class="notif-msg"><%= n.message %></div>
+          <div class="notif-meta"><%= new Date(n.created_at).toLocaleString() %></div>
+        </div>
+        <div class="notif-actions">
+          <% if (n.link) { %><a href="<%= n.link %>">Open</a><% } %>
+          <% if (!n.is_read) { %>
+            <form action="/notifications/<%= n.id %>/read" method="POST" class="inline-form">
+              <button class="link-plain">Mark read</button>
+            </form>
+          <% } %>
+        </div>
+      </li>
+    <% }); %>
+  </ul>
+<% } %>
+
+<%- include('partials/footer') %>

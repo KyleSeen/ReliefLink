@@ -1,45 +1,35 @@
-// routes/victim.js — Victim / Public User dashboard + two functionalities
-//   1) Register for Aid + Find Shelter (aid_requests table + shelters table)
-//   2) Submit & Track Emergency Reports (incident_reports table)
-// Owner: Seen Man Hong (TP069765)
+// Victim dashboard. Owner: Seen Man Hong (TP069765). Tables: aid_requests, incident_reports, shelters
 const express = require('express');
 const { requireLogin, requireRole } = require('../middleware/auth');
 const db = require('../config/db');
+const { logActivity } = require('../services/audit');
 
 const router = express.Router();
-
-// Every route here requires being logged in AS a victim.
 const guard = [requireLogin, requireRole('victim')];
 
-// Allowed values, checked server-side so a tampered form can't insert junk.
+// Allowed values checked server-side so a tampered form cannot insert junk.
 const NEED_TYPES = ['food', 'water', 'medical', 'shelter', 'clothing', 'rescue'];
 const INCIDENT_TYPES = [
   'flood', 'landslide', 'fire', 'storm damage',
   'building collapse', 'medical emergency', 'other',
 ];
 
-// Helper: turn empty form values into real SQL NULLs.
 function nullIfEmpty(v) {
   return v === undefined || v === null || String(v).trim() === '' ? null : v;
 }
 
-// Helper: build a redirect back to the dashboard with a flash message.
 function back(tab, kind, msg) {
   const params = new URLSearchParams({ tab });
   params.set(kind, msg);
   return '/victim/dashboard?' + params.toString();
 }
 
-// ---------------------------------------------------------------
-// DASHBOARD — loads all data for both features and renders the page
-// ---------------------------------------------------------------
 router.get('/dashboard', guard, async (req, res) => {
   const userId = req.session.user.id;
   const q = (req.query.q || '').trim();
   const tab = req.query.tab === 'reports' ? 'reports' : 'shelter';
 
   try {
-    // Shelter finder: hide closed shelters, list the emptiest ones first.
     const like = `%${q}%`;
     const [shelters] = await db.query(
       `SELECT id, name, location, capacity, current_occupancy, status,
@@ -50,15 +40,11 @@ router.get('/dashboard', guard, async (req, res) => {
         ORDER BY (status = 'open') DESC, free_spaces DESC, name`,
       [like, like]
     );
-
-    // Options for the "preferred shelter" dropdowns. Full shelters stay listed
-    // (a coordinator may still place you there); closed ones don't.
     const [shelterOptions] = await db.query(
       `SELECT id, name, location, status FROM shelters
         WHERE status <> 'closed'
         ORDER BY name`
     );
-
     const [requests] = await db.query(
       `SELECT r.*, s.name AS shelter_name, s.location AS shelter_location
          FROM aid_requests r
@@ -67,16 +53,31 @@ router.get('/dashboard', guard, async (req, res) => {
         ORDER BY r.created_at DESC, r.id DESC`,
       [userId]
     );
-
     const [reports] = await db.query(
       `SELECT * FROM incident_reports
         WHERE user_id = ?
         ORDER BY created_at DESC, id DESC`,
       [userId]
     );
+    const [[st]] = await db.query(
+      `SELECT
+         (SELECT COUNT(*) FROM aid_requests WHERE user_id = ? AND status <> 'resolved') AS active_requests,
+         (SELECT COUNT(*) FROM aid_requests WHERE user_id = ? AND status = 'resolved')   AS resolved_requests,
+         (SELECT COUNT(*) FROM incident_reports WHERE user_id = ? AND status <> 'resolved') AS open_reports,
+         (SELECT COUNT(*) FROM incident_reports WHERE user_id = ? AND status = 'resolved')  AS resolved_reports,
+         (SELECT COUNT(*) FROM shelters WHERE status = 'open'
+            AND (capacity - current_occupancy) > 0) AS shelters_with_space`,
+      [userId, userId, userId, userId]
+    );
+    const stats = {
+      activeRequests: Number(st.active_requests) || 0,
+      sheltersWithSpace: Number(st.shelters_with_space) || 0,
+      openReports: Number(st.open_reports) || 0,
+      resolved: (Number(st.resolved_requests) || 0) + (Number(st.resolved_reports) || 0),
+    };
 
     res.render('dashboards/victim', {
-      shelters, shelterOptions, requests, reports,
+      shelters, shelterOptions, requests, reports, stats,
       needTypes: NEED_TYPES,
       incidentTypes: INCIDENT_TYPES,
       q,
@@ -88,6 +89,7 @@ router.get('/dashboard', guard, async (req, res) => {
     console.error('Victim dashboard error:', e);
     res.render('dashboards/victim', {
       shelters: [], shelterOptions: [], requests: [], reports: [],
+      stats: { activeRequests: 0, sheltersWithSpace: 0, openReports: 0, resolved: 0 },
       needTypes: NEED_TYPES, incidentTypes: INCIDENT_TYPES,
       q: '', tab: 'shelter',
       ok: null, err: 'Could not load data. Is the database running?',
@@ -95,36 +97,31 @@ router.get('/dashboard', guard, async (req, res) => {
   }
 });
 
-// ===============================================================
-// FEATURE 1 — REGISTER FOR AID + FIND SHELTER
-// ===============================================================
-
-// Create an aid request (optionally tied to a shelter picked from the finder)
 router.post('/aid-requests', guard, async (req, res) => {
   const needType = (req.body.need_type || '').trim();
   const peopleCount = parseInt(req.body.people_count, 10);
   const shelterId = nullIfEmpty(req.body.shelter_id);
 
   if (!NEED_TYPES.includes(needType)) {
-    return res.redirect(back('shelter', 'err', 'Please choose a valid type of aid.'));
+    return res.redirect(back('shelter', 'err', 'Choose a valid type of aid.'));
   }
   if (Number.isNaN(peopleCount) || peopleCount < 1 || peopleCount > 500) {
     return res.redirect(back('shelter', 'err', 'Number of people must be between 1 and 500.'));
   }
 
   try {
-    // A NULL shelter_id is fine (no preference); a supplied one must exist.
     if (shelterId) {
       const [found] = await db.query('SELECT id FROM shelters WHERE id = ?', [shelterId]);
       if (found.length === 0) {
         return res.redirect(back('shelter', 'err', 'That shelter no longer exists.'));
       }
     }
-    await db.query(
+    const [ins] = await db.query(
       `INSERT INTO aid_requests (user_id, shelter_id, need_type, people_count, status)
        VALUES (?, ?, ?, ?, 'pending')`,
       [req.session.user.id, shelterId, needType, peopleCount]
     );
+    await logActivity(null, req, 'request.created', 'aid_request', ins.insertId, needType);
     res.redirect(back('shelter', 'ok', 'Aid request submitted. A coordinator will review it.'));
   } catch (e) {
     console.error('Create aid request error:', e);
@@ -132,7 +129,6 @@ router.post('/aid-requests', guard, async (req, res) => {
   }
 });
 
-// Update an aid request — only your own, and only while still pending.
 router.post('/aid-requests/:id/update', guard, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const needType = (req.body.need_type || '').trim();
@@ -147,8 +143,8 @@ router.post('/aid-requests/:id/update', guard, async (req, res) => {
   }
 
   try {
-    // user_id in the WHERE clause blocks editing someone else's request by
-    // changing the id in the URL.
+    // user_id and status in the WHERE clause block editing someone else's
+    // request, or one a coordinator has already picked up.
     const [result] = await db.query(
       `UPDATE aid_requests
           SET need_type = ?, people_count = ?, shelter_id = ?
@@ -157,8 +153,9 @@ router.post('/aid-requests/:id/update', guard, async (req, res) => {
     );
     if (result.affectedRows === 0) {
       return res.redirect(back('shelter', 'err',
-        'That request can no longer be edited — a coordinator has already picked it up.'));
+        'That request can no longer be edited because a coordinator has picked it up.'));
     }
+    await logActivity(null, req, 'request.updated', 'aid_request', id, needType);
     res.redirect(back('shelter', 'ok', 'Aid request updated.'));
   } catch (e) {
     console.error('Update aid request error:', e);
@@ -166,7 +163,6 @@ router.post('/aid-requests/:id/update', guard, async (req, res) => {
   }
 });
 
-// Withdraw an aid request — only your own, and only while still pending.
 router.post('/aid-requests/:id/delete', guard, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (Number.isNaN(id)) {
@@ -179,8 +175,9 @@ router.post('/aid-requests/:id/delete', guard, async (req, res) => {
     );
     if (result.affectedRows === 0) {
       return res.redirect(back('shelter', 'err',
-        'That request can no longer be withdrawn — it is already being handled.'));
+        'That request can no longer be withdrawn because it is being handled.'));
     }
+    await logActivity(null, req, 'request.withdrawn', 'aid_request', id, null);
     res.redirect(back('shelter', 'ok', 'Aid request withdrawn.'));
   } catch (e) {
     console.error('Delete aid request error:', e);
@@ -188,33 +185,28 @@ router.post('/aid-requests/:id/delete', guard, async (req, res) => {
   }
 });
 
-// ===============================================================
-// FEATURE 2 — SUBMIT & TRACK EMERGENCY REPORTS
-// ===============================================================
-
-// File a new emergency incident report
 router.post('/reports', guard, async (req, res) => {
   const type = (req.body.type || '').trim();
   const location = (req.body.location || '').trim();
   const description = (req.body.description || '').trim();
 
   if (!INCIDENT_TYPES.includes(type)) {
-    return res.redirect(back('reports', 'err', 'Please choose a valid emergency type.'));
+    return res.redirect(back('reports', 'err', 'Choose a valid emergency type.'));
   }
   if (!location) {
-    return res.redirect(back('reports', 'err', 'Please tell us where the emergency is.'));
+    return res.redirect(back('reports', 'err', 'Enter where the emergency is.'));
   }
   if (description.length < 10) {
-    return res.redirect(back('reports', 'err',
-      'Please describe the emergency in at least 10 characters.'));
+    return res.redirect(back('reports', 'err', 'Describe the emergency in at least 10 characters.'));
   }
 
   try {
-    await db.query(
+    const [ins] = await db.query(
       `INSERT INTO incident_reports (user_id, type, location, description, status)
        VALUES (?, ?, ?, ?, 'submitted')`,
       [req.session.user.id, type, location, description]
     );
+    await logActivity(null, req, 'report.created', 'incident_report', ins.insertId, type);
     res.redirect(back('reports', 'ok', 'Emergency report submitted.'));
   } catch (e) {
     console.error('Create report error:', e);
@@ -222,7 +214,6 @@ router.post('/reports', guard, async (req, res) => {
   }
 });
 
-// Correct a report — only your own, and only before responders act on it.
 router.post('/reports/:id/update', guard, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const type = (req.body.type || '').trim();
@@ -233,8 +224,7 @@ router.post('/reports/:id/update', guard, async (req, res) => {
     return res.redirect(back('reports', 'err', 'Invalid report update.'));
   }
   if (description.length < 10) {
-    return res.redirect(back('reports', 'err',
-      'Please describe the emergency in at least 10 characters.'));
+    return res.redirect(back('reports', 'err', 'Describe the emergency in at least 10 characters.'));
   }
 
   try {
@@ -246,8 +236,9 @@ router.post('/reports/:id/update', guard, async (req, res) => {
     );
     if (result.affectedRows === 0) {
       return res.redirect(back('reports', 'err',
-        'That report can no longer be edited — responders are already acting on it.'));
+        'That report can no longer be edited because responders are acting on it.'));
     }
+    await logActivity(null, req, 'report.updated', 'incident_report', id, type);
     res.redirect(back('reports', 'ok', 'Report updated.'));
   } catch (e) {
     console.error('Update report error:', e);
@@ -255,7 +246,6 @@ router.post('/reports/:id/update', guard, async (req, res) => {
   }
 });
 
-// Retract a report — only your own, and only before responders act on it.
 router.post('/reports/:id/delete', guard, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (Number.isNaN(id)) {
@@ -268,8 +258,9 @@ router.post('/reports/:id/delete', guard, async (req, res) => {
     );
     if (result.affectedRows === 0) {
       return res.redirect(back('reports', 'err',
-        'That report can no longer be retracted — responders are already acting on it.'));
+        'That report can no longer be retracted because responders are acting on it.'));
     }
+    await logActivity(null, req, 'report.withdrawn', 'incident_report', id, null);
     res.redirect(back('reports', 'ok', 'Report retracted.'));
   } catch (e) {
     console.error('Delete report error:', e);

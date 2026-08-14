@@ -11,7 +11,7 @@ Target: **Amazon RDS (MySQL)** for the database + **AWS Elastic Beanstalk** for 
 ## 1. Create the database on Amazon RDS
 
 1. In the AWS Console, go to **RDS → Create database**.
-2. Engine: **MySQL**. Template: Free tier (for coursework) is fine.
+2. Engine: **MySQL**. Template: Free tier is fine.
 3. Set a master username/password and a DB instance identifier.
 4. Under **Connectivity**, enable **Public access** (so you can load the schema
    from your machine) and configure the security group to allow inbound MySQL

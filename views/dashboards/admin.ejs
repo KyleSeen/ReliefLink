@@ -1,248 +1,267 @@
 <%- include('../partials/header') %>
 
 <%
-  // Small helpers for coloured status badges
-  function shelterBadge(s){
-    return s === 'open' ? 'bg-success' : (s === 'full' ? 'bg-warning text-dark' : 'bg-secondary');
+  function shelterTag(s){ return s === 'full' ? 'red' : (s === 'closed' ? 'grey' : 'green'); }
+  function shelterLabel(s){ return s === 'full' ? 'Full' : (s === 'closed' ? 'Closed' : 'Taking people'); }
+  function taskTag(s){
+    if (s === 'accepted') return 'turq';
+    if (s === 'in_progress') return 'orange';
+    if (s === 'completed') return 'green';
+    return 'grey';
   }
-  function taskBadge(s){
-    if (s === 'open') return 'bg-secondary';
-    if (s === 'accepted') return 'bg-info text-dark';
-    if (s === 'in_progress') return 'bg-primary';
-    if (s === 'completed') return 'bg-success';
-    return 'bg-secondary';
+  function meterClass(occ, cap){
+    var pct = cap > 0 ? (occ / cap) * 100 : 100;
+    if (pct >= 100) return 'full';
+    if (pct >= 75) return 'warn';
+    return '';
+  }
+  function meterPct(occ, cap){ return cap > 0 ? Math.min(Math.round(occ / cap * 100), 100) : 100; }
+  function bandClass(sc){ if (sc >= 80) return 'red'; if (sc >= 55) return 'orange'; if (sc >= 30) return 'blue'; return 'grey'; }
+  function bandLabel(sc){ if (sc >= 80) return 'Critical'; if (sc >= 55) return 'High'; if (sc >= 30) return 'Medium'; return 'Routine'; }
+  function roleTag(r){ return r === 'admin' ? 'blue' : (r === 'victim' ? 'orange' : (r === 'volunteer' ? 'turq' : 'green')); }
+  function timeAgo(d){
+    var s = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
+    if (s < 60) return s + ' sec ago';
+    var m = Math.floor(s / 60); if (m < 60) return m + ' min ago';
+    var h = Math.floor(m / 60); if (h < 24) return h + ' hr ago';
+    var dd = Math.floor(h / 24); return dd + (dd === 1 ? ' day ago' : ' days ago');
   }
 %>
 
-<div class="rl-dash-header">
-  <div class="container">
-    <h1 class="h3 mb-1">Admin Dashboard</h1>
-    <p class="mb-0 text-white-50">Logged in as <%= currentUser.name %></p>
+<% if (ok) { %>
+  <div class="toast"><div class="head">Done</div><div class="body"><%= ok %></div></div>
+<% } else if (err) { %>
+  <div class="toast err"><div class="head">There is a problem</div><div class="body"><%= err %></div></div>
+<% } %>
+
+<%- include('../partials/chain') %>
+
+<h1>Coordinator dashboard</h1>
+
+<% if (aidRequests.length > 0) { %>
+  <div class="banner"><div class="head">Action needed</div>
+    <div class="body"><%= aidRequests.length %> aid request<%= aidRequests.length === 1 ? '' : 's' %> waiting to be turned into tasks.</div>
   </div>
+<% } %>
+
+<div class="stats">
+  <div class="stat"><div class="num mono"><%= stats.totalShelters %></div><div class="lbl">Shelters</div></div>
+  <div class="stat <%= stats.fullShelters > 0 ? 'red' : '' %>"><div class="num mono"><%= stats.fullShelters %></div><div class="lbl">Full</div></div>
+  <div class="stat green"><div class="num mono"><%= stats.spacesRemaining %></div><div class="lbl">Spaces left</div></div>
+  <div class="stat <%= stats.pendingRequests > 0 ? 'red' : '' %>"><div class="num mono"><%= stats.pendingRequests %></div><div class="lbl">Pending requests</div></div>
+  <div class="stat green"><div class="num mono"><%= stats.volunteersAvailable %></div><div class="lbl">Volunteers free</div></div>
 </div>
 
-<div class="container py-4">
-
-  <!-- Flash messages -->
-  <% if (ok) { %>
-    <div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i><%= ok %></div>
-  <% } %>
-  <% if (err) { %>
-    <div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle me-1"></i><%= err %></div>
-  <% } %>
-
-  <!-- Quick stats -->
-  <div class="row g-3 mb-4">
-    <div class="col-6 col-md-3">
-      <div class="card rl-card text-center"><div class="card-body py-3">
-        <div class="h4 mb-0 text-primary"><%= shelters.length %></div>
-        <small class="text-muted">Shelters</small>
-      </div></div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="card rl-card text-center"><div class="card-body py-3">
-        <div class="h4 mb-0 text-primary"><%= tasks.length %></div>
-        <small class="text-muted">Tasks</small>
-      </div></div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="card rl-card text-center"><div class="card-body py-3">
-        <div class="h4 mb-0 text-primary"><%= volunteers.length %></div>
-        <small class="text-muted">Volunteers</small>
-      </div></div>
-    </div>
-    <div class="col-6 col-md-3">
-      <div class="card rl-card text-center"><div class="card-body py-3">
-        <div class="h4 mb-0 text-primary"><%= tasks.filter(t => !t.assigned_to).length %></div>
-        <small class="text-muted">Unassigned</small>
-      </div></div>
-    </div>
+<!-- Coordinator features (Owner: Salman): shelters, volunteer assignment, aid-request handoff -->
+<div data-tabs="<%= tab %>">
+  <div class="tabs">
+    <button class="tab-btn" data-target="shelters">Manage shelters</button>
+    <button class="tab-btn" data-target="tasks">Assign volunteers</button>
+    <button class="tab-btn" data-target="requests">Aid requests<%= aidRequests.length ? ' (' + aidRequests.length + ')' : '' %></button>
+    <button class="tab-btn" data-target="activity">Activity log</button>
   </div>
 
-  <!-- ============================================= -->
-  <!-- ADMIN FUNCTIONALITIES (Owner: Salman)         -->
-  <!-- 1) Manage Shelters   2) Assign Volunteers     -->
-  <!-- ============================================= -->
-
-  <!-- Tab bar -->
-  <ul class="nav nav-tabs mb-0" id="adminTabs" role="tablist">
-    <li class="nav-item" role="presentation">
-      <button class="nav-link <%= tab === 'shelters' ? 'active' : '' %>" id="shelters-tab"
-              data-bs-toggle="tab" data-bs-target="#shelters-pane" type="button" role="tab">
-        <i class="bi bi-house-heart me-1"></i>Manage Shelters
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link <%= tab === 'tasks' ? 'active' : '' %>" id="tasks-tab"
-              data-bs-toggle="tab" data-bs-target="#tasks-pane" type="button" role="tab">
-        <i class="bi bi-person-check me-1"></i>Assign Volunteers
-      </button>
-    </li>
-  </ul>
-
-  <div class="tab-content feature-area rounded-0 rounded-bottom">
-
-    <!-- ================= TAB 1: MANAGE SHELTERS ================= -->
-    <div class="tab-pane fade <%= tab === 'shelters' ? 'show active' : '' %>" id="shelters-pane" role="tabpanel">
-
-      <h5 class="mb-3"><i class="bi bi-plus-circle me-1"></i>Add a shelter</h5>
-      <form action="/admin/shelters" method="POST" class="row g-2 align-items-end mb-4">
-        <div class="col-md-4">
-          <label class="form-label">Name</label>
-          <input type="text" name="name" class="form-control" placeholder="e.g. Central Community Hall" required>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Location</label>
-          <input type="text" name="location" class="form-control" placeholder="e.g. Downtown, Sector 4" required>
-        </div>
-        <div class="col-md-2">
-          <label class="form-label">Capacity</label>
-          <input type="number" name="capacity" class="form-control" min="0" placeholder="200" required>
-        </div>
-        <div class="col-md-2">
-          <button type="submit" class="btn rl-btn-primary w-100">Add</button>
-        </div>
+  <!-- Manage shelters -->
+  <div class="tab-pane" id="shelters">
+    <div class="panel">
+      <h3>Add a shelter</h3>
+      <form action="/admin/shelters" method="POST" class="form-row">
+        <div class="field"><label>Name</label><input type="text" name="name" required></div>
+        <div class="field"><label>Location</label><input type="text" name="location" required></div>
+        <div class="field narrow"><label>Capacity</label><input type="number" name="capacity" min="0" required></div>
+        <div class="field narrow"><button class="btn">Add shelter</button></div>
       </form>
-
-      <h5 class="mb-3"><i class="bi bi-list-ul me-1"></i>All shelters</h5>
-      <% if (shelters.length === 0) { %>
-        <p class="text-muted">No shelters yet. Add one above.</p>
-      <% } else { %>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>Name</th><th>Location</th><th>Capacity</th>
-                <th style="min-width:230px;">Occupancy & Status</th>
-                <th class="text-end">Remove</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% shelters.forEach(function(s){ %>
-                <tr>
-                  <td class="fw-semibold"><%= s.name %></td>
-                  <td><%= s.location %></td>
-                  <td><%= s.capacity %></td>
-                  <td>
-                    <form action="/admin/shelters/<%= s.id %>/update" method="POST" class="d-flex gap-1">
-                      <input type="number" name="current_occupancy" class="form-control form-control-sm"
-                             style="width:80px;" min="0" value="<%= s.current_occupancy %>">
-                      <select name="status" class="form-select form-select-sm" style="width:100px;">
-                        <option value="open"   <%= s.status === 'open'   ? 'selected' : '' %>>open</option>
-                        <option value="full"   <%= s.status === 'full'   ? 'selected' : '' %>>full</option>
-                        <option value="closed" <%= s.status === 'closed' ? 'selected' : '' %>>closed</option>
-                      </select>
-                      <button class="btn btn-sm btn-outline-primary">Save</button>
-                    </form>
-                    <span class="badge <%= shelterBadge(s.status) %> mt-1"><%= s.status %></span>
-                  </td>
-                  <td class="text-end">
-                    <form action="/admin/shelters/<%= s.id %>/delete" method="POST"
-                          onsubmit="return confirm('Delete this shelter?');">
-                      <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                    </form>
-                  </td>
-                </tr>
-              <% }); %>
-            </tbody>
-          </table>
-        </div>
-      <% } %>
     </div>
 
-    <!-- ================= TAB 2: ASSIGN VOLUNTEERS ================= -->
-    <div class="tab-pane fade <%= tab === 'tasks' ? 'show active' : '' %>" id="tasks-pane" role="tabpanel">
+    <% if (shelters.length === 0) { %>
+      <p class="muted">No shelters yet. Add one above.</p>
+    <% } else { %>
+      <table>
+        <caption>All shelters and how full they are (<%= shelters.length %>).</caption>
+        <thead><tr><th>Name</th><th>Location</th><th>Occupancy</th><th>Update</th><th></th></tr></thead>
+        <tbody>
+          <% shelters.forEach(function(s){ %>
+            <tr>
+              <td data-label="Name"><strong><%= s.name %></strong></td>
+              <td data-label="Location"><%= s.location %></td>
+              <td data-label="Occupancy">
+                <div class="meter"><div class="fill <%= meterClass(s.current_occupancy, s.capacity) %>" style="width:<%= meterPct(s.current_occupancy, s.capacity) %>%"></div></div>
+                <div class="meter-cap"><%= s.current_occupancy %> of <%= s.capacity %></div>
+                <span class="tag <%= shelterTag(s.status) %>"><%= shelterLabel(s.status) %></span>
+              </td>
+              <td data-label="Update">
+                <form action="/admin/shelters/<%= s.id %>/update" method="POST" class="form-row">
+                  <div class="field narrow" style="flex:0 1 90px"><label class="mb-0">People</label><input type="number" name="current_occupancy" min="0" value="<%= s.current_occupancy %>"></div>
+                  <div class="field narrow" style="flex:0 1 110px"><label class="mb-0">Status</label>
+                    <select name="status">
+                      <option value="open" <%= s.status === 'open' ? 'selected' : '' %>>open</option>
+                      <option value="full" <%= s.status === 'full' ? 'selected' : '' %>>full</option>
+                      <option value="closed" <%= s.status === 'closed' ? 'selected' : '' %>>closed</option>
+                    </select>
+                  </div>
+                  <div class="field narrow"><button class="btn sm blue">Save</button></div>
+                </form>
+              </td>
+              <td data-label="">
+                <form action="/admin/shelters/<%= s.id %>/delete" method="POST" class="inline-form"
+                      onsubmit="return confirm('Remove this shelter?');">
+                  <button class="link-danger">Remove</button>
+                </form>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
 
-      <h5 class="mb-3"><i class="bi bi-plus-circle me-1"></i>Create &amp; assign a task</h5>
+  <!-- Assign volunteers -->
+  <div class="tab-pane" id="tasks">
+    <div class="panel">
+      <h3>Raise a task by hand</h3>
       <% if (volunteers.length === 0) { %>
-        <div class="alert alert-info py-2">
-          No volunteers have registered yet. You can still create a task and assign it later.
-        </div>
+        <div class="inset">No volunteers are free right now. You can raise a task and assign it later.</div>
       <% } %>
-      <form action="/admin/tasks" method="POST" class="row g-2 align-items-end mb-4">
-        <div class="col-md-3">
-          <label class="form-label">Title</label>
-          <input type="text" name="title" class="form-control" placeholder="e.g. Distribute water" required>
-        </div>
-        <div class="col-md-3">
-          <label class="form-label">Description</label>
-          <input type="text" name="description" class="form-control" placeholder="Optional details">
-        </div>
-        <div class="col-md-2">
-          <label class="form-label">Shelter</label>
-          <select name="shelter_id" class="form-select">
-            <option value="">None</option>
-            <% shelters.forEach(function(s){ %>
-              <option value="<%= s.id %>"><%= s.name %></option>
-            <% }); %>
+      <form action="/admin/tasks" method="POST" class="form-row">
+        <div class="field"><label>Title</label><input type="text" name="title" required></div>
+        <div class="field"><label>Details</label><input type="text" name="description"></div>
+        <div class="field narrow"><label>Shelter</label>
+          <select name="shelter_id"><option value="">None</option>
+            <% shelters.forEach(function(s){ %><option value="<%= s.id %>"><%= s.name %></option><% }); %>
           </select>
         </div>
-        <div class="col-md-2">
-          <label class="form-label">Assign to</label>
-          <select name="assigned_to" class="form-select">
-            <option value="">Unassigned</option>
-            <% volunteers.forEach(function(v){ %>
-              <option value="<%= v.id %>"><%= v.name %> (<%= v.availability %>)</option>
-            <% }); %>
+        <div class="field narrow"><label>Assign to</label>
+          <select name="assigned_to"><option value="">Unassigned</option>
+            <% volunteers.forEach(function(v){ %><option value="<%= v.id %>"><%= v.name %></option><% }); %>
           </select>
         </div>
-        <div class="col-md-2">
-          <button type="submit" class="btn rl-btn-primary w-100">Create</button>
-        </div>
+        <div class="field narrow"><button class="btn">Raise task</button></div>
       </form>
-
-      <h5 class="mb-3"><i class="bi bi-list-task me-1"></i>All tasks</h5>
-      <% if (tasks.length === 0) { %>
-        <p class="text-muted">No tasks yet. Create one above.</p>
-      <% } else { %>
-        <div class="table-responsive">
-          <table class="table table-hover align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>Task</th><th>Shelter</th><th>Status</th>
-                <th style="min-width:230px;">Assigned volunteer</th>
-                <th class="text-end">Remove</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% tasks.forEach(function(t){ %>
-                <tr>
-                  <td>
-                    <div class="fw-semibold"><%= t.title %></div>
-                    <% if (t.description) { %><small class="text-muted"><%= t.description %></small><% } %>
-                  </td>
-                  <td><%= t.shelter_name ? t.shelter_name : 'None' %></td>
-                  <td><span class="badge <%= taskBadge(t.status) %>"><%= t.status %></span></td>
-                  <td>
-                    <form action="/admin/tasks/<%= t.id %>/assign" method="POST" class="d-flex gap-1">
-                      <select name="assigned_to" class="form-select form-select-sm">
-                        <option value="">Unassigned</option>
-                        <% volunteers.forEach(function(v){ %>
-                          <option value="<%= v.id %>" <%= t.assigned_to === v.id ? 'selected' : '' %>>
-                            <%= v.name %> (<%= v.availability %>)
-                          </option>
-                        <% }); %>
-                      </select>
-                      <button class="btn btn-sm btn-outline-primary">Save</button>
-                    </form>
-                    <% if (!t.assigned_to) { %>
-                      <small class="text-muted">Not yet assigned</small>
-                    <% } %>
-                  </td>
-                  <td class="text-end">
-                    <form action="/admin/tasks/<%= t.id %>/delete" method="POST"
-                          onsubmit="return confirm('Delete this task?');">
-                      <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
-                    </form>
-                  </td>
-                </tr>
-              <% }); %>
-            </tbody>
-          </table>
-        </div>
-      <% } %>
     </div>
 
+    <% if (tasks.length === 0) { %>
+      <p class="muted">No tasks yet.</p>
+    <% } else { %>
+      <table>
+        <caption>All tasks and who is assigned to each (<%= tasks.length %>).</caption>
+        <thead><tr><th>Task</th><th>Shelter</th><th>Status</th><th>Assign</th><th></th></tr></thead>
+        <tbody>
+          <% tasks.forEach(function(t){ var assignedListed = volunteers.some(function(v){ return v.id === t.assigned_to; }); %>
+            <tr>
+              <td data-label="Task"><strong><%= t.title %></strong><% if (t.description) { %><div class="muted"><%= t.description %></div><% } %></td>
+              <td data-label="Shelter"><%= t.shelter_name ? t.shelter_name : 'None' %></td>
+              <td data-label="Status"><span class="tag <%= taskTag(t.status) %>"><%= t.status.replace('_',' ') %></span></td>
+              <td data-label="Assign">
+                <form action="/admin/tasks/<%= t.id %>/assign" method="POST" class="form-row">
+                  <div class="field" style="flex:1 1 150px">
+                    <select name="assigned_to">
+                      <option value="">Unassigned</option>
+                      <% if (t.assigned_to && !assignedListed) { %>
+                        <option value="<%= t.assigned_to %>" selected><%= t.volunteer_name %> (busy)</option>
+                      <% } %>
+                      <% volunteers.forEach(function(v){ %>
+                        <option value="<%= v.id %>" <%= t.assigned_to === v.id ? 'selected' : '' %>><%= v.name %></option>
+                      <% }); %>
+                    </select>
+                  </div>
+                  <div class="field narrow"><button class="btn sm blue">Save</button></div>
+                </form>
+              </td>
+              <td data-label="">
+                <form action="/admin/tasks/<%= t.id %>/delete" method="POST" class="inline-form"
+                      onsubmit="return confirm('Remove this task?');">
+                  <button class="link-danger">Remove</button>
+                </form>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+
+  <!-- Aid requests -->
+  <div class="tab-pane" id="requests">
+    <div class="inset">Requests are ranked by priority: the type of need, how many people
+      are affected, and how long the request has waited. The most urgent rise to the top.
+      Raising a task links the request to a task, marks it assigned, and books the people
+      into the shelter if there is room.</div>
+    <% if (aidRequests.length === 0) { %>
+      <p class="muted">No pending aid requests right now.</p>
+    <% } else { %>
+      <table>
+        <caption>People waiting for help, most urgent first (<%= aidRequests.length %>).</caption>
+        <thead><tr><th>Priority</th><th>Person</th><th>Needs</th><th>People</th><th>Shelter</th><th></th></tr></thead>
+        <tbody>
+          <% aidRequests.forEach(function(r){ var sc = Number(r.priority_score) || 0; %>
+            <tr>
+              <td data-label="Priority"><span class="tag <%= bandClass(sc) %>"><%= bandLabel(sc) %></span></td>
+              <td data-label="Person"><strong><%= r.requester_name %></strong></td>
+              <td data-label="Needs"><%= r.need_type %></td>
+              <td data-label="People"><span class="mono"><%= r.people_count %></span></td>
+              <td data-label="Shelter"><%= r.shelter_name ? r.shelter_name : 'No preference' %></td>
+              <td data-label="">
+                <form action="/admin/aid-requests/<%= r.id %>/raise-task" method="POST" class="inline-form">
+                  <button class="btn sm">Raise task</button>
+                </form>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+
+  <!-- Activity log -->
+  <div class="tab-pane" id="activity">
+    <div class="inset">A record of who did what across the service. The volunteer role keeps
+      its own records separately.</div>
+    <form action="/admin/dashboard" method="GET" class="form-row" style="margin-bottom:18px">
+      <input type="hidden" name="tab" value="activity">
+      <div class="field narrow"><label>Role</label>
+        <select name="role">
+          <option value="">All roles</option>
+          <% ['admin','victim','volunteer','donor'].forEach(function(rr){ %>
+            <option value="<%= rr %>" <%= activity.role === rr ? 'selected' : '' %>><%= rr %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div class="field narrow"><label>Action</label>
+        <select name="action">
+          <option value="">All actions</option>
+          <% activity.actions.forEach(function(a){ %>
+            <option value="<%= a %>" <%= activity.action === a ? 'selected' : '' %>><%= a %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div class="field narrow"><button class="btn blue">Filter</button></div>
+    </form>
+
+    <% if (activity.rows.length === 0) { %>
+      <div class="inset">No activity has been recorded yet.</div>
+    <% } else { %>
+      <table>
+        <caption>Activity entries (<%= activity.total %> total, page <%= activity.page %> of <%= activity.pages %>).</caption>
+        <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Detail</th></tr></thead>
+        <tbody>
+          <% activity.rows.forEach(function(a){ %>
+            <tr>
+              <td data-label="When"><%= timeAgo(a.created_at) %></td>
+              <td data-label="Who"><%= a.user_name %> <span class="tag <%= roleTag(a.user_role) %>"><%= a.user_role %></span></td>
+              <td data-label="Action"><span class="mono"><%= a.action %></span></td>
+              <td data-label="Detail"><%= a.detail ? a.detail : '' %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+      <% if (activity.pages > 1) { %>
+        <% var qs = 'tab=activity' + (activity.role ? '&role=' + activity.role : '') + (activity.action ? '&action=' + encodeURIComponent(activity.action) : ''); %>
+        <div style="margin-top:12px">
+          <% if (activity.page > 1) { %><a class="btn sm grey" href="/admin/dashboard?<%= qs %>&page=<%= activity.page - 1 %>">Previous</a><% } %>
+          <% if (activity.page < activity.pages) { %><a class="btn sm grey" href="/admin/dashboard?<%= qs %>&page=<%= activity.page + 1 %>">Next</a><% } %>
+        </div>
+      <% } %>
+    <% } %>
   </div>
 </div>
 

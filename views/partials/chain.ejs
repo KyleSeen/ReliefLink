@@ -1,0 +1,31 @@
+<% var c = (typeof chain !== 'undefined' && chain) ? chain : {}; %>
+<div class="chain">
+  <div class="cell">
+    <div class="step">Step 1</div>
+    <div class="role">Victim</div>
+    <div class="does">Asks for help and finds a shelter.</div>
+    <div class="count <%= (c.pendingRequests || 0) > 0 ? 'waiting' : '' %>"><%= c.pendingRequests || 0 %></div>
+    <div class="unit">requests waiting</div>
+  </div>
+  <div class="cell">
+    <div class="step">Step 2</div>
+    <div class="role">Coordinator</div>
+    <div class="does">Raises a task from each request.</div>
+    <div class="count <%= (c.openTasks || 0) > 0 ? 'waiting' : '' %>"><%= c.openTasks || 0 %></div>
+    <div class="unit">tasks to assign</div>
+  </div>
+  <div class="cell">
+    <div class="step">Step 3</div>
+    <div class="role">Volunteer</div>
+    <div class="does">Delivers help in the field.</div>
+    <div class="count"><%= c.activeTasks || 0 %></div>
+    <div class="unit">tasks in progress</div>
+  </div>
+  <div class="cell">
+    <div class="step">Step 4</div>
+    <div class="role">Donor</div>
+    <div class="does">Replaces what was used.</div>
+    <div class="count"><%= c.resolvedRequests || 0 %></div>
+    <div class="unit">requests resolved</div>
+  </div>
+</div>

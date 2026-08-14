@@ -1,13 +1,13 @@
-// routes/auth.js — register, login, logout
+// Authentication: register, login, logout. Table: users
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../config/db');
+const { logActivity } = require('../services/audit');
 
 const router = express.Router();
 
 const ROLES = ['admin', 'victim', 'volunteer', 'donor'];
 
-// ---------- Registration ----------
 router.get('/register', (req, res) => {
   res.render('register', { error: null, form: {} });
 });
@@ -18,16 +18,15 @@ router.post('/register', async (req, res) => {
   const password = req.body.password || '';
   const role = req.body.role || '';
 
-  // Basic validation
   if (!name || !email || !password || !role) {
     return res.render('register', {
-      error: 'All fields are required.',
+      error: 'Enter your name, email, password, and role.',
       form: { name, email, role },
     });
   }
   if (!ROLES.includes(role)) {
     return res.render('register', {
-      error: 'Please choose a valid role.',
+      error: 'Choose a valid role.',
       form: { name, email, role },
     });
   }
@@ -39,7 +38,6 @@ router.post('/register', async (req, res) => {
   }
 
   try {
-    // Reject duplicate emails.
     const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
     if (existing.length > 0) {
       return res.render('register', {
@@ -49,22 +47,23 @@ router.post('/register', async (req, res) => {
     }
 
     const hash = await bcrypt.hash(password, 10);
-    await db.query(
+    const [ins] = await db.query(
       'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
       [name, email, hash, role]
     );
+    await logActivity(null, { session: { user: { id: ins.insertId, name, role } } },
+      'auth.register', 'user', ins.insertId, `${role}`);
 
     return res.redirect('/login?registered=1');
   } catch (err) {
     console.error('Register error:', err);
     return res.render('register', {
-      error: 'Something went wrong. Please try again.',
+      error: 'Something went wrong. Try again.',
       form: { name, email, role },
     });
   }
 });
 
-// ---------- Login ----------
 router.get('/login', (req, res) => {
   res.render('login', {
     error: null,
@@ -79,7 +78,7 @@ router.post('/login', async (req, res) => {
 
   if (!email || !password) {
     return res.render('login', {
-      error: 'Email and password are required.',
+      error: 'Enter your email and password.',
       registered: false,
       form: { email },
     });
@@ -97,22 +96,22 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Store the essentials in the session.
     req.session.user = { id: user.id, name: user.name, role: user.role };
-
+    await logActivity(null, req, 'auth.login', 'user', user.id, null);
     return res.redirect(`/${user.role}/dashboard`);
   } catch (err) {
     console.error('Login error:', err);
     return res.render('login', {
-      error: 'Something went wrong. Please try again.',
+      error: 'Something went wrong. Try again.',
       registered: false,
       form: { email },
     });
   }
 });
 
-// ---------- Logout ----------
-router.get('/logout', (req, res) => {
+router.get('/logout', async (req, res) => {
+  await logActivity(null, req, 'auth.logout', 'user',
+    req.session.user ? req.session.user.id : null, null);
   req.session.destroy(() => {
     res.redirect('/');
   });

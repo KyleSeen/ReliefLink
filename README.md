@@ -8,8 +8,7 @@ role routing, four styled (empty) dashboards, and the full database schema.
 The two functionalities per role are intentionally left for each team member to
 build on top of this foundation.
 
-**Module:** CT071-3-3-DDAC — Designing and Developing Applications on the Cloud
-**Stack:** Node.js + Express, EJS, MySQL (`mysql2`), Bootstrap 5, `express-session` + `bcryptjs`
+**Stack:** Node.js + Express, EJS, MySQL (`mysql2`), `express-session` + `bcryptjs`
 **Target deployment:** AWS (Amazon RDS + Elastic Beanstalk) — see `DEPLOYMENT.md`.
 
 ---
@@ -50,16 +49,16 @@ Then open http://localhost:3000
 
 `.env` is gitignored — never commit real credentials. `.env.example` is the template.
 
-## 3. Test logins (from seed data)
+## 3. Sign-in accounts
 
 Password for **all** seed accounts: `Test1234`
 
-| Role | Email |
-|---|---|
-| Admin | `admin@relief.link` |
-| Victim | `victim@relief.link` |
-| Volunteer | `volunteer@relief.link` |
-| Donor | `donor@relief.link` |
+| Name | Role | Email |
+|---|---|---|
+| Salman | Admin | `admin@relief.link` |
+| Seen Man Hong | Victim | `victim@relief.link` |
+| Saeed | Volunteer | `volunteer@relief.link` |
+| Yap Sin Ni | Donor | `donor@relief.link` |
 
 You can also register a brand-new account for any role from `/register`.
 

@@ -1,23 +1,146 @@
 <%- include('../partials/header') %>
 
+<%
+  function taskTag(s){
+    if (s === 'accepted') return 'turq';
+    if (s === 'in_progress') return 'orange';
+    if (s === 'completed') return 'green';
+    return 'grey';
+  }
+%>
+
+<% if (ok) { %>
+  <div class="toast"><div class="head">Done</div><div class="body"><%= ok %></div></div>
+<% } else if (err) { %>
+  <div class="toast err"><div class="head">There is a problem</div><div class="body"><%= err %></div></div>
+<% } %>
+
 <%- include('../partials/chain') %>
 
 <h1>Volunteer dashboard</h1>
 
-<% var s = (typeof stats !== 'undefined' && stats) ? stats : {}; %>
 <div class="stats">
-  <div class="stat"><div class="num mono"><%= s.total || 0 %></div><div class="lbl">Tasks assigned</div></div>
-  <div class="stat"><div class="num mono"><%= s.inProgress || 0 %></div><div class="lbl">In progress</div></div>
-  <div class="stat green"><div class="num mono"><%= s.completed || 0 %></div><div class="lbl">Completed</div></div>
-  <div class="stat"><div class="num mono"><%= s.logs || 0 %></div><div class="lbl">Log entries</div></div>
+  <div class="stat"><div class="num mono"><%= stats.total %></div><div class="lbl">Tasks assigned</div></div>
+  <div class="stat"><div class="num mono"><%= stats.inProgress %></div><div class="lbl">In progress</div></div>
+  <div class="stat green"><div class="num mono"><%= stats.completed %></div><div class="lbl">Completed</div></div>
+  <div class="stat"><div class="num mono"><%= stats.logs %></div><div class="lbl">Log entries</div></div>
 </div>
 
-<!-- ============================================= -->
-<!-- TEAM: BUILD YOUR TWO FUNCTIONALITIES BELOW    -->
-<!-- Owner: volunteer                              -->
-<!-- ============================================= -->
-<div class="panel">
-  <p class="muted mb-0">Your functionalities will be built here.</p>
+<!-- Volunteer features (Owner: Saeed): my tasks, field activity log -->
+<div data-tabs="<%= tab %>">
+  <div class="tabs">
+    <button class="tab-btn" data-target="tasks">My tasks</button>
+    <button class="tab-btn" data-target="log">Field log</button>
+  </div>
+
+  <!-- My tasks -->
+  <div class="tab-pane" id="tasks">
+    <div class="panel">
+      <h3>My availability</h3>
+      <form action="/volunteer/availability" method="POST" class="form-row">
+        <div class="field narrow"><label>Set availability</label>
+          <select name="availability">
+            <% availabilityOptions.forEach(function(a){ %>
+              <option value="<%= a %>" <%= availability === a ? 'selected' : '' %>><%= a %></option>
+            <% }); %>
+          </select>
+        </div>
+        <div class="field narrow"><button class="btn blue">Save</button></div>
+      </form>
+      <p class="muted mb-0">When you are not <strong>available</strong>, the coordinator cannot assign new tasks to you.</p>
+    </div>
+
+    <% if (tasks.length === 0) { %>
+      <p class="muted">No tasks are assigned to you yet. A coordinator will assign them here.</p>
+    <% } else { %>
+      <table>
+        <caption>Tasks assigned to you (<%= tasks.length %>).</caption>
+        <thead><tr><th>Task</th><th>Shelter</th><th>From request</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <% tasks.forEach(function(t){ %>
+            <tr>
+              <td data-label="Task"><strong><%= t.title %></strong><% if (t.description) { %><div class="muted"><%= t.description %></div><% } %></td>
+              <td data-label="Shelter"><%= t.shelter_name ? t.shelter_name : 'None' %></td>
+              <td data-label="From request"><% if (t.request_need) { %><%= t.request_need %> (<span class="mono"><%= t.request_people %></span> ppl)<% } else { %><span class="muted">Direct task</span><% } %></td>
+              <td data-label="Status"><span class="tag <%= taskTag(t.status) %>"><%= t.status.replace('_',' ') %></span></td>
+              <td data-label="">
+                <% if (t.status === 'accepted') { %>
+                  <form action="/volunteer/tasks/<%= t.id %>/status" method="POST" class="inline-form">
+                    <input type="hidden" name="status" value="in_progress">
+                    <button class="btn sm blue">Start</button>
+                  </form>
+                <% } else if (t.status === 'in_progress') { %>
+                  <form action="/volunteer/tasks/<%= t.id %>/status" method="POST" class="inline-form"
+                        onsubmit="return confirm('Mark this task complete? This resolves the linked aid request.');">
+                    <input type="hidden" name="status" value="completed">
+                    <button class="btn sm">Mark complete</button>
+                  </form>
+                <% } else { %>
+                  <span class="muted">Finished</span>
+                <% } %>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+
+  <!-- Field log -->
+  <div class="tab-pane" id="log">
+    <div class="panel">
+      <h3>Add a log entry</h3>
+      <form action="/volunteer/logs" method="POST" class="form-row">
+        <div class="field"><label>Activity</label><input type="text" name="activity" required></div>
+        <div class="field"><label>Notes</label><input type="text" name="notes"></div>
+        <div class="field narrow"><label>Task</label>
+          <select name="task_id"><option value="">None</option>
+            <% tasks.forEach(function(t){ %><option value="<%= t.id %>"><%= t.title %></option><% }); %>
+          </select>
+        </div>
+        <div class="field narrow"><button class="btn">Add</button></div>
+      </form>
+    </div>
+
+    <% if (logs.length === 0) { %>
+      <p class="muted">You have not logged any activity yet.</p>
+    <% } else { %>
+      <table>
+        <caption>Your activity log (<%= logs.length %>).</caption>
+        <thead><tr><th style="min-width:300px;">Activity and notes</th><th>Task</th><th>Status</th><th>Date</th><th></th></tr></thead>
+        <tbody>
+          <% logs.forEach(function(l){ %>
+            <tr>
+              <td data-label="Activity">
+                <% if (l.status === 'logged') { %>
+                  <form action="/volunteer/logs/<%= l.id %>/update" method="POST" class="form-row">
+                    <div class="field" style="flex:1 1 180px"><input type="text" name="activity" value="<%= l.activity %>" required></div>
+                    <div class="field" style="flex:1 1 140px"><input type="text" name="notes" value="<%= l.notes ? l.notes : '' %>" placeholder="Notes"></div>
+                    <div class="field narrow"><button class="btn sm blue">Change</button></div>
+                  </form>
+                <% } else { %>
+                  <strong><%= l.activity %></strong><% if (l.notes) { %><div class="muted"><%= l.notes %></div><% } %>
+                <% } %>
+              </td>
+              <td data-label="Task"><%= l.task_title ? l.task_title : 'None' %></td>
+              <td data-label="Status"><span class="tag <%= l.status === 'verified' ? 'green' : 'grey' %>"><%= l.status %></span></td>
+              <td data-label="Date"><%= new Date(l.created_at).toLocaleDateString() %></td>
+              <td data-label="">
+                <% if (l.status === 'logged') { %>
+                  <form action="/volunteer/logs/<%= l.id %>/delete" method="POST" class="inline-form"
+                        onsubmit="return confirm('Delete this log entry?');">
+                    <button class="link-danger">Delete</button>
+                  </form>
+                <% } else { %>
+                  <span class="muted">verified</span>
+                <% } %>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
 </div>
 
 <%- include('../partials/footer') %>

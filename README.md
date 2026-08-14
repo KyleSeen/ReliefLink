@@ -136,3 +136,38 @@ shared theme.
 & assigning volunteers; aid registration & incident reports; task accept/update &
 activity log; donation pledging & resource-need dashboard). Tables for all of these
 already exist.
+
+## 9. Task lifecycle
+
+A task moves through five stages, and each stage is driven by a specific actor:
+
+```
+open  →  assigned  →  accepted  →  in_progress  →  completed
+(admin)   (admin)     (volunteer)  (volunteer)     (volunteer)
+```
+
+- **open** — the coordinator created the task but has not attached a volunteer.
+- **assigned** — the coordinator assigned a volunteer; the volunteer has not accepted yet.
+- **accepted** — the volunteer took the task on.
+- **in_progress** — the volunteer started the work.
+- **completed** — the volunteer finished; this resolves the linked aid request,
+  frees the volunteer's availability, writes a log entry, and notifies the victim
+  and admins, all in one transaction.
+
+## 10. Packaging for submission
+
+Build the submission archive with:
+
+```bash
+npm run package
+```
+
+This produces `submission.zip` excluding `node_modules/`, `.env`, `.idea/`, `.git/`,
+and `.DS_Store` — so no dependencies or secrets ship. Your local `.env` stays in
+place; it is only excluded from the archive.
+
+Then rename the archive to the required convention:
+
+```
+G<Group Number>_Task_1_System Submission.zip
+```

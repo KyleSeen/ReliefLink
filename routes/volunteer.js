@@ -9,8 +9,9 @@ const router = express.Router();
 const guard = [requireLogin, requireRole('volunteer')];
 
 const AVAILABILITY = ['available', 'busy', 'off'];
-// A volunteer may only push a task one step forward at a time.
-const NEXT_STATUS = { accepted: 'in_progress', in_progress: 'completed' };
+// A volunteer may only push a task one step forward at a time:
+// assigned -> accepted -> in_progress -> completed.
+const NEXT_STATUS = { assigned: 'accepted', accepted: 'in_progress', in_progress: 'completed' };
 
 function nullIfEmpty(v) {
   return v === undefined || v === null || String(v).trim() === '' ? null : v;
@@ -34,7 +35,7 @@ router.get('/dashboard', guard, async (req, res) => {
          LEFT JOIN shelters s     ON t.shelter_id = s.id
          LEFT JOIN aid_requests r ON t.request_id = r.id
         WHERE t.assigned_to = ?
-        ORDER BY FIELD(t.status,'accepted','in_progress','completed'), t.created_at DESC`,
+        ORDER BY FIELD(t.status,'assigned','accepted','in_progress','completed'), t.created_at DESC`,
       [userId]
     );
     const [logs] = await db.query(
@@ -89,7 +90,7 @@ router.post('/tasks/:id/status', guard, async (req, res) => {
   const target = req.body.status;
   const userId = req.session.user.id;
 
-  if (Number.isNaN(id) || !['in_progress', 'completed'].includes(target)) {
+  if (Number.isNaN(id) || !['accepted', 'in_progress', 'completed'].includes(target)) {
     return res.redirect(back('tasks', 'err', 'Invalid task update.'));
   }
 
@@ -116,6 +117,10 @@ router.post('/tasks/:id/status', guard, async (req, res) => {
       );
       if (result.affectedRows === 0) {
         return res.redirect(back('tasks', 'err', 'That task is not assigned to you.'));
+      }
+      if (target === 'accepted') {
+        await logActivity(null, req, 'task.accepted', 'task', id, task.title);
+        return res.redirect(back('tasks', 'ok', 'Task accepted.'));
       }
       await logActivity(null, req, 'task.started', 'task', id, task.title);
       return res.redirect(back('tasks', 'ok', 'Task marked in progress.'));

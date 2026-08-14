@@ -1,11 +1,12 @@
 {
   "name": "relieflink",
   "version": "1.0.0",
-  "description": "ReliefLink — Disaster Relief Coordination Platform (foundation build)",
+  "description": "ReliefLink — Disaster Relief Coordination Platform",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "package": "zip -r submission.zip . -x 'node_modules/*' '.env' '.idea/*' '.git/*' '*.DS_Store' 'submission.zip'"
   },
   "engines": {
     "node": ">=18"

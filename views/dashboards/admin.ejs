@@ -4,6 +4,7 @@
   function shelterTag(s){ return s === 'full' ? 'red' : (s === 'closed' ? 'grey' : 'green'); }
   function shelterLabel(s){ return s === 'full' ? 'Full' : (s === 'closed' ? 'Closed' : 'Taking people'); }
   function taskTag(s){
+    if (s === 'assigned') return 'orange';
     if (s === 'accepted') return 'turq';
     if (s === 'in_progress') return 'orange';
     if (s === 'completed') return 'green';

@@ -205,7 +205,7 @@ router.post('/tasks', guard, async (req, res) => {
   if (!title) {
     return res.redirect('/admin/dashboard?tab=tasks&err=' + encodeURIComponent('Enter a task title.'));
   }
-  const status = assignedTo ? 'accepted' : 'open';
+  const status = assignedTo ? 'assigned' : 'open';
   try {
     const [r] = await db.query(
       'INSERT INTO tasks (title, description, shelter_id, assigned_to, status) VALUES (?, ?, ?, ?, ?)',
@@ -228,7 +228,7 @@ router.post('/tasks/:id/assign', guard, async (req, res) => {
   if (Number.isNaN(id)) {
     return res.redirect('/admin/dashboard?tab=tasks&err=' + encodeURIComponent('Invalid task.'));
   }
-  const status = assignedTo ? 'accepted' : 'open';
+  const status = assignedTo ? 'assigned' : 'open';
   try {
     const [rows] = await db.query('SELECT title FROM tasks WHERE id = ?', [id]);
     await db.query(

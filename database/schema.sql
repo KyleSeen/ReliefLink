@@ -67,7 +67,7 @@ CREATE TABLE tasks (
   description TEXT,
   shelter_id  INT NULL,
   assigned_to INT NULL,
-  status      ENUM('open','accepted','in_progress','completed') DEFAULT 'open',
+  status      ENUM('open','assigned','accepted','in_progress','completed') DEFAULT 'open',
   created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (shelter_id)  REFERENCES shelters(id) ON DELETE SET NULL,
   FOREIGN KEY (assigned_to) REFERENCES users(id)    ON DELETE SET NULL

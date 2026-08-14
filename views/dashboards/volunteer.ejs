@@ -2,6 +2,7 @@
 
 <%
   function taskTag(s){
+    if (s === 'assigned') return 'orange';
     if (s === 'accepted') return 'turq';
     if (s === 'in_progress') return 'orange';
     if (s === 'completed') return 'green';
@@ -64,7 +65,12 @@
               <td data-label="From request"><% if (t.request_need) { %><%= t.request_need %> (<span class="mono"><%= t.request_people %></span> ppl)<% } else { %><span class="muted">Direct task</span><% } %></td>
               <td data-label="Status"><span class="tag <%= taskTag(t.status) %>"><%= t.status.replace('_',' ') %></span></td>
               <td data-label="">
-                <% if (t.status === 'accepted') { %>
+                <% if (t.status === 'assigned') { %>
+                  <form action="/volunteer/tasks/<%= t.id %>/status" method="POST" class="inline-form">
+                    <input type="hidden" name="status" value="accepted">
+                    <button class="btn sm blue">Accept</button>
+                  </form>
+                <% } else if (t.status === 'accepted') { %>
                   <form action="/volunteer/tasks/<%= t.id %>/status" method="POST" class="inline-form">
                     <input type="hidden" name="status" value="in_progress">
                     <button class="btn sm blue">Start</button>

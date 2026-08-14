@@ -27,6 +27,13 @@ BEGIN
       ADD CONSTRAINT fk_tasks_request
       FOREIGN KEY (request_id) REFERENCES aid_requests(id) ON DELETE SET NULL;
   END IF;
+
+  -- Add the 'assigned' status only if it is not already in the enum.
+  IF (SELECT COLUMN_TYPE FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tasks' AND COLUMN_NAME = 'status') NOT LIKE '%assigned%' THEN
+    ALTER TABLE tasks
+      MODIFY status ENUM('open','assigned','accepted','in_progress','completed') NOT NULL DEFAULT 'open';
+  END IF;
 END $$
 DELIMITER ;
 
@@ -172,8 +179,14 @@ INSERT INTO tasks (title, description, request_id, shelter_id, assigned_to, stat
 SELECT 'Set up bedding at Harbourside Depot', 'Prepare space for 12 people.',
        (SELECT id FROM aid_requests WHERE need_type = 'shelter' AND people_count = 12 AND status = 'assigned' LIMIT 1),
        (SELECT id FROM shelters WHERE name = 'Harbourside Depot'),
-       (SELECT id FROM users WHERE email = 'volunteer@relief.link'), 'accepted'
+       (SELECT id FROM users WHERE email = 'volunteer@relief.link'), 'assigned'
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Set up bedding at Harbourside Depot');
+
+INSERT INTO tasks (title, description, request_id, shelter_id, assigned_to, status)
+SELECT 'Hand out food parcels at Northgate', 'Distribute food to families.',
+       NULL, (SELECT id FROM shelters WHERE name = 'Northgate Sports Arena'),
+       (SELECT id FROM users WHERE email = 'volunteer@relief.link'), 'accepted'
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM tasks WHERE title = 'Hand out food parcels at Northgate');
 
 INSERT INTO tasks (title, description, request_id, shelter_id, assigned_to, status)
 SELECT 'Medical check at Northgate', 'Check on people needing medical help.',

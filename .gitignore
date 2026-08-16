@@ -3,3 +3,9 @@ node_modules/
 .idea/
 .DS_Store
 npm-debug.log*
+README_DATABASE.txt
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml

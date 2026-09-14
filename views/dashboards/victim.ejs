@@ -200,9 +200,12 @@
                 <% } else { %>
                   <strong style="text-transform:capitalize"><%= r.type %></strong> &middot; <%= r.location %>
                   <div class="muted"><%= r.description %></div>
-                  <% if (r.photo_key) { %>
-                    <div class="muted">Photo attached &middot; <span class="mono"><%= r.photo_key %></span></div>
-                  <% } %>
+                <% } %>
+                <%# Shown whatever the status: a victim needs to see the photo is
+                    attached while the report is still editable, not only after a
+                    responder locks it. %>
+                <% if (r.photo_key) { %>
+                  <div class="muted">Photo attached &middot; <span class="mono"><%= r.photo_key %></span></div>
                 <% } %>
               </td>
               <td data-label="Status"><span class="tag <%= reportTag(r.status) %>"><%= r.status.replace('_',' ') %></span></td>

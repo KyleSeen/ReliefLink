@@ -41,17 +41,29 @@ folder is kept as a fallback only.)
       (both lower-case and mixed-case host spellings allowed — browsers send the
       Origin host lower-cased and S3 matches it case-sensitively)
 - [x] API Gateway CORS tightened to the same origins
-- [x] App redeployed as version `media-260914_060255` — environment Ready / Green
+- [x] App redeployed — latest version `media-260914_065358`, environment Ready / Green
 - [x] `incident_reports.photo_key` created automatically on boot. Confirmed in the
       instance log: `[victim] added incident_reports.photo_key`
 
 Live app: `http://relieflink-env.eba-aceznikr.us-east-1.elasticbeanstalk.com`
 
-### One outstanding item
+### End-to-end verified through the browser, 14 September 2026
 
-The deployed bundle was patched directly in CloudShell, so **the git repository is
-behind what is running**. The same changes exist locally in `routes/victim.js` and
-`views/dashboards/victim.ejs` — commit and push them so source matches production.
+A victim attached a photograph on the live site and submitted the report:
+
+1. Browser called `POST /upload-url` — presigned URL returned
+2. Browser `PUT` the image straight to S3 — accepted
+3. Form posted the key; the report saved and now displays
+   `Photo attached · incidents/2026-09-14/8e084e45-b748-49cd-babb-2b7144edd751.jpg`
+4. The same object is visible in the bucket at 10.5 KB
+
+### Known gap
+
+An image is uploaded to S3 before the report form is submitted, so abandoning the form
+after choosing a photo leaves an object in the bucket that no report references. One such
+orphan exists from testing. An S3 lifecycle rule deleting unreferenced objects under
+`incidents/` after a short period would clean these up — worth listing under the report's
+"further improvements".
 
 ## Cost
 

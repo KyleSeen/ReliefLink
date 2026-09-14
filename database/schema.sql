@@ -58,6 +58,7 @@ CREATE TABLE incident_reports (
   type        VARCHAR(100),
   location    VARCHAR(255),
   description TEXT,
+  photo_key   VARCHAR(255) NULL,                          -- Task #2: S3 object key
   status      ENUM('submitted','in_progress','resolved') DEFAULT 'submitted',
   created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

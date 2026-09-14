@@ -18,6 +18,40 @@ function nullIfEmpty(v) {
   return v === undefined || v === null || String(v).trim() === '' ? null : v;
 }
 
+// Task #2 needs incident_reports.photo_key. Adding it on boot keeps the deploy
+// self-contained: the column appears on first start and the check is a no-op
+// afterwards. A failure here must not stop the app serving the rest of the role.
+async function ensureMediaColumn() {
+  try {
+    const [rows] = await db.query(
+      `SELECT COUNT(*) AS n FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'incident_reports'
+          AND COLUMN_NAME = 'photo_key'`
+    );
+    if (rows[0].n === 0) {
+      await db.query(
+        'ALTER TABLE incident_reports ADD COLUMN photo_key VARCHAR(255) NULL AFTER description'
+      );
+      console.log('[victim] added incident_reports.photo_key');
+    }
+  } catch (e) {
+    console.error('[victim] photo_key check failed:', e.message);
+  }
+}
+ensureMediaColumn();
+
+// The browser returns whatever key the presign Lambda issued. Accept only keys
+// in our own incidents/ prefix so a tampered form cannot point a report at an
+// arbitrary object in the bucket.
+function validPhotoKey(v) {
+  const key = (v || '').trim();
+  if (!key) return null;
+  return /^incidents\/\d{4}-\d{2}-\d{2}\/[0-9a-f-]{36}\.(jpg|png|webp)$/.test(key)
+    ? key
+    : null;
+}
+
 function back(tab, kind, msg) {
   const params = new URLSearchParams({ tab });
   params.set(kind, msg);
@@ -78,6 +112,7 @@ router.get('/dashboard', guard, async (req, res) => {
 
     res.render('dashboards/victim', {
       shelters, shelterOptions, requests, reports, stats,
+      uploadApiUrl: process.env.UPLOAD_API_URL || '',
       needTypes: NEED_TYPES,
       incidentTypes: INCIDENT_TYPES,
       q,
@@ -90,6 +125,7 @@ router.get('/dashboard', guard, async (req, res) => {
     res.render('dashboards/victim', {
       shelters: [], shelterOptions: [], requests: [], reports: [],
       stats: { activeRequests: 0, sheltersWithSpace: 0, openReports: 0, resolved: 0 },
+      uploadApiUrl: process.env.UPLOAD_API_URL || '',
       needTypes: NEED_TYPES, incidentTypes: INCIDENT_TYPES,
       q: '', tab: 'shelter',
       ok: null, err: 'Could not load data. Is the database running?',
@@ -189,6 +225,8 @@ router.post('/reports', guard, async (req, res) => {
   const type = (req.body.type || '').trim();
   const location = (req.body.location || '').trim();
   const description = (req.body.description || '').trim();
+  // Set by the browser after it uploads straight to S3. Only the key reaches us.
+  const photoKey = validPhotoKey(req.body.photo_key);
 
   if (!INCIDENT_TYPES.includes(type)) {
     return res.redirect(back('reports', 'err', 'Choose a valid emergency type.'));
@@ -202,9 +240,9 @@ router.post('/reports', guard, async (req, res) => {
 
   try {
     const [ins] = await db.query(
-      `INSERT INTO incident_reports (user_id, type, location, description, status)
-       VALUES (?, ?, ?, ?, 'submitted')`,
-      [req.session.user.id, type, location, description]
+      `INSERT INTO incident_reports (user_id, type, location, description, photo_key, status)
+       VALUES (?, ?, ?, ?, ?, 'submitted')`,
+      [req.session.user.id, type, location, description, photoKey]
     );
     await logActivity(null, req, 'report.created', 'incident_report', ins.insertId, type);
     res.redirect(back('reports', 'ok', 'Emergency report submitted.'));

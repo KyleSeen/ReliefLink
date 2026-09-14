@@ -9,3 +9,6 @@ README_DATABASE.txt
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
+
+# Lambda build artifact - index.js alone is the deployment package
+lambdas/**/presign-upload-lambda.zip

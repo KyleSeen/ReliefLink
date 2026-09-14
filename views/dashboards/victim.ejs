@@ -155,7 +155,21 @@
           <div class="hint">At least 10 characters.</div>
           <textarea name="description" rows="3" required></textarea>
         </div>
-        <button class="btn">Send report</button>
+
+        <!-- Task #2 media upload. The photo goes straight from this browser to
+             S3 via a presigned URL; only the resulting key is posted to us. -->
+        <div class="field">
+          <label for="photoInput">Photo <span class="muted">(optional)</span></label>
+          <div class="hint">JPEG, PNG or WebP, up to 5 MB. Uploaded directly to secure storage.</div>
+          <input type="file" id="photoInput" accept="image/jpeg,image/png,image/webp"
+                 <%= uploadApiUrl ? '' : 'disabled' %>>
+          <input type="hidden" name="photo_key" id="photoKey">
+          <div id="photoStatus" class="hint" role="status" aria-live="polite">
+            <% if (!uploadApiUrl) { %>Photo upload is unavailable right now.<% } %>
+          </div>
+        </div>
+
+        <button class="btn" id="reportSubmit">Send report</button>
       </form>
     </div>
 
@@ -186,6 +200,9 @@
                 <% } else { %>
                   <strong style="text-transform:capitalize"><%= r.type %></strong> &middot; <%= r.location %>
                   <div class="muted"><%= r.description %></div>
+                  <% if (r.photo_key) { %>
+                    <div class="muted">Photo attached &middot; <span class="mono"><%= r.photo_key %></span></div>
+                  <% } %>
                 <% } %>
               </td>
               <td data-label="Status"><span class="tag <%= reportTag(r.status) %>"><%= r.status.replace('_',' ') %></span></td>
@@ -206,5 +223,70 @@
     <% } %>
   </div>
 </div>
+
+
+<script>
+// Media Upload Service (Task #2) - Seen Man Hong
+// 1. ask the presign Lambda for a short-lived PUT URL
+// 2. PUT the file straight to S3
+// 3. put the returned key in a hidden field for the normal form post
+(function () {
+  var API = <%- JSON.stringify(uploadApiUrl || '') %>;
+  var input = document.getElementById('photoInput');
+  var keyField = document.getElementById('photoKey');
+  var status = document.getElementById('photoStatus');
+  var submit = document.getElementById('reportSubmit');
+  if (!API || !input) return;
+
+  var MAX = 5 * 1024 * 1024;
+
+  function say(msg) { status.textContent = msg; }
+  function busy(on) { submit.disabled = on; input.disabled = on; }
+
+  input.addEventListener('change', async function () {
+    keyField.value = '';
+    var file = input.files && input.files[0];
+    if (!file) { say(''); return; }
+
+    if (file.size > MAX) {
+      say('That image is larger than 5 MB. Choose a smaller one.');
+      input.value = '';
+      return;
+    }
+
+    busy(true);
+    say('Uploading photo...');
+    try {
+      // Step 1 - presigned URL from API Gateway + Lambda
+      var res = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentType: file.type, size: file.size })
+      });
+      if (!res.ok) throw new Error('presign failed: ' + res.status);
+      var data = await res.json();
+
+      // Step 2 - straight to S3. Content-Type must match what was signed.
+      var put = await fetch(data.uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file
+      });
+      if (!put.ok) throw new Error('upload failed: ' + put.status);
+
+      // Step 3 - hand the key to the form
+      keyField.value = data.key;
+      say('Photo attached.');
+    } catch (e) {
+      console.error('[ReliefLink upload]', e);
+      say('Photo upload failed. You can still send the report without it.');
+      input.value = '';
+      keyField.value = '';
+    } finally {
+      busy(false);
+    }
+  });
+})();
+</script>
 
 <%- include('../partials/footer') %>

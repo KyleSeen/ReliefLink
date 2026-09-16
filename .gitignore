@@ -12,3 +12,12 @@ README_DATABASE.txt
 
 # Lambda build artifact - index.js alone is the deployment package
 lambdas/**/presign-upload-lambda.zip
+/.vs/VSWorkspaceState.json
+/.vs/ReliefLink2/v17/.wsuo
+/.vs/ReliefLink2/v17/DocumentLayout.json
+/.vs/ProjectSettings.json
+/.vs/slnx.sqlite
+/.vs/ReliefLink2/FileContentIndex
+/shortfall-lambda
+/package.json
+/package-lock.json

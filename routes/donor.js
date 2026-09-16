@@ -6,6 +6,7 @@ const { logActivity } = require('../services/audit');
 
 const router = express.Router();
 const guard = [requireLogin, requireRole('donor')];
+const axios = require('axios');
 
 // Must match the victim's need types, otherwise the shortfall join
 // (donations.item_type = aid_requests.need_type) never matches.
@@ -19,21 +20,15 @@ router.get('/dashboard', guard, async (req, res) => {
       'SELECT * FROM donations WHERE user_id = ? ORDER BY created_at DESC, id DESC',
       [userId]
     );
-    const [shortfall] = await db.query(
-      `SELECT r.need_type AS category,
-              SUM(r.people_count) * 3            AS units_needed,
-              COALESCE(d.total_pledged, 0)       AS units_pledged,
-              GREATEST(SUM(r.people_count) * 3 - COALESCE(d.total_pledged, 0), 0) AS shortfall
-         FROM aid_requests r
-         LEFT JOIN (
-               SELECT item_type, SUM(quantity) AS total_pledged
-                 FROM donations
-                GROUP BY item_type
-         ) d ON d.item_type = r.need_type
-        WHERE r.status <> 'resolved'
-        GROUP BY r.need_type, d.total_pledged
-        ORDER BY shortfall DESC`
-    );
+      let shortfall = [];
+      try {
+          const { data } = await axios.get(
+              'https://64ln1vk2u4.execute-api.us-east-1.amazonaws.com/default/reliefflink-shortfall-analytics'
+          );
+          shortfall = data;
+      } catch (lambdaErr) {
+          console.error('Shortfall Lambda error:', lambdaErr.message);
+      }
     const [shelters] = await db.query(
       `SELECT *, GREATEST(capacity - current_occupancy, 0) AS spots_left
          FROM shelters
